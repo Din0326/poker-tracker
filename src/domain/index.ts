@@ -1,0 +1,8 @@
+// domain 對外匯出；本目錄為純函式，不得 import React、Dexie 或 src/db（ESLint 強制）
+export * from './types'
+export * from './schemas'
+export * from './session'
+export * from './aggregate'
+export * from './period'
+export * from './sort'
+export * from './format'
