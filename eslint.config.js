@@ -29,6 +29,21 @@ export default tseslint.config(
       'no-restricted-imports': ['error', { patterns: [devImportRestriction] }],
     },
   },
+  // no-restricted-imports 不檢查 dynamic import()，另以 no-restricted-syntax 禁止；
+  // 唯一例外是設定頁的開發用 seed 按鈕（Q6），它只在 import.meta.env.DEV 條件內 dynamic import，正式建置會被移除
+  {
+    files: ['src/**/*.{ts,tsx}'],
+    ignores: ['src/dev/**', 'src/features/settings/DevSeedSection.tsx'],
+    rules: {
+      'no-restricted-syntax': [
+        'error',
+        {
+          selector: 'ImportExpression[source.value=/(^|\\/)dev(\\/|$)/]',
+          message: devImportRestriction.message,
+        },
+      ],
+    },
+  },
   // DoD 10.3 P1：domain/ 為純函式，不得 import React、Dexie 或 db 層
   // （flat config 同一規則後者覆蓋前者，所以這裡也要重複 dev 的限制）
   {

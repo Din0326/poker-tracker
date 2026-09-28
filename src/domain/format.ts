@@ -3,6 +3,7 @@
 // - 進位後為 0 時不帶正負號，不會出現 −0.0%（A6、A7）
 // - 負號使用 U+2212；金額為整數、千分位逗號、`$` 前綴（A7）
 // - 輸入為 null（分母為 0）時顯示 —
+import dayjs from 'dayjs'
 import { strings } from '../strings'
 import type { PlacePercentile } from './aggregate'
 import type { Stake } from './types'
@@ -118,4 +119,33 @@ export function formatHours(hours: number): string {
 /** 盲注顯示名稱 `sb/bb`（3.4），不存 DB */
 export function stakeLabel(stake: Pick<Stake, 'sb' | 'bb'>): string {
   return f.stake(stake.sb, stake.bb)
+}
+
+/** 單場 bb 盈利，小數 1 位、帶正負號（7.2）。例 `+20.0 bb` */
+export function formatBbProfit(value: number | null): string {
+  if (value === null) return f.empty
+  const p = parts(value, 1, false)
+  return `${signPrefix(p.sign, true)}${p.text}${f.bbSuffix}`
+}
+
+/**
+ * 時長（7.2）`4 小時 30 分`。
+ * 規格未載明 0 分或 0 小時時是否省略，這裡一律顯示兩段（`4 小時 0 分`、`0 小時 30 分`）。
+ */
+export function formatDuration(minutes: number): string {
+  return f.duration(Math.floor(minutes / 60), minutes % 60)
+}
+
+/**
+ * MTT 名次（7.2）`第 12 名 / 180 人（前 6.7%）`；ratio 為 finishPlace ÷ fieldSize（0–1），
+ * 百分比小數 1 位（與平均名次百分位相同）
+ */
+export function formatFinishPlace(place: number, fieldSize: number, ratio: number): string {
+  return f.finishPlace(place, fieldSize, parts(ratio * 100, 1, false).text)
+}
+
+/** 建立 / 修改時間戳（ISO 8601 含時區）以裝置本地時間顯示 `2026/09/28 21:05` */
+export function formatTimestamp(iso: string): string {
+  const d = dayjs(iso)
+  return d.isValid() ? d.format('YYYY/MM/DD HH:mm') : f.empty
 }
