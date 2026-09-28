@@ -37,4 +37,24 @@ export const strings = {
     available: '有新版本',
     reload: '重新載入',
   },
+  // 4.4 數值顯示用的符號與樣板（src/domain/format.ts 使用）
+  format: {
+    /** 分母為 0 等無法計算時 */
+    empty: '—',
+    /** 正式減號 U+2212 */
+    minus: '−',
+    plus: '+',
+    currency: '$',
+    percent: '%',
+    hourlySuffix: '/hr',
+    bbPerHourSuffix: ' bb/hr',
+    hours: (value: string) => `${value} 小時`,
+    /** 贏率、ITM%：`13/26（50.0%）` */
+    fraction: (numerator: number, denominator: number, percent: string) =>
+      `${numerator}/${denominator}（${percent}%）`,
+    /** 平均名次百分位：`前 23.5%（n=12）` */
+    placePercentile: (percent: string, n: number) => `前 ${percent}%（n=${n}）`,
+    /** 盲注顯示名稱 `sb/bb`（3.4） */
+    stake: (sb: number, bb: number) => `${sb}/${bb}`,
+  },
 } as const
