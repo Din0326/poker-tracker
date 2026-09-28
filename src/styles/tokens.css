@@ -22,6 +22,7 @@
   --color-on-danger: #ffffff;
   --color-red: #b3261e;
   --color-green: #17703a;
+  --color-backdrop: rgba(0, 0, 0, 0.4);
 
   /* 間距、圓角、動效 */
   --radius-card: 12px;
@@ -30,6 +31,9 @@
   --header-height: 48px;
   --page-max-width: 480px;
   --touch-min: 44px;
+  /* 執行期由程式更新：iOS 鍵盤遮住的高度（visualViewport）、新增頁固定底部列高度 */
+  --keyboard-inset: 0px;
+  --record-bar-offset: 0px;
   --motion-duration: 200ms;
   --motion-ease: cubic-bezier(0.2, 0, 0, 1);
 
@@ -53,6 +57,7 @@
     --color-on-danger: #1f0503;
     --color-red: #ff6f6f;
     --color-green: #45d483;
+    --color-backdrop: rgba(0, 0, 0, 0.6);
   }
 }
 

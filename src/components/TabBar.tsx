@@ -1,5 +1,6 @@
 import { ChartColumn, CirclePlus, List, Settings, type LucideIcon } from 'lucide-react'
 import { NavLink } from 'react-router'
+import { OBSCURES_BOTTOM_ATTR } from '../lib/viewport'
 import { strings } from '../strings'
 
 type Tab = { to: string; label: string; icon: LucideIcon; end?: boolean }
@@ -16,6 +17,7 @@ export function TabBar() {
   return (
     <nav
       aria-label={strings.tabs.navLabel}
+      {...{ [OBSCURES_BOTTOM_ATTR]: '' }}
       className="fixed inset-x-0 bottom-0 z-20 border-t border-(--color-border) bg-(--color-surface) pb-[env(safe-area-inset-bottom)]"
     >
       <ul className="mx-auto flex max-w-(--page-max-width) px-[env(safe-area-inset-left)]">
