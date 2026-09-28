@@ -10,12 +10,14 @@ import { SettingsPage } from './features/settings/SettingsPage'
 import { StakesPage } from './features/settings/StakesPage'
 import { VenuesPage } from './features/settings/VenuesPage'
 import { useScrollMemory } from './lib/useScrollMemory'
+import { useKeyboardInset } from './lib/viewport'
 
 function AppLayout() {
   useScrollMemory()
+  useKeyboardInset()
   return (
     <>
-      <div className="mx-auto min-h-dvh max-w-(--page-max-width) pl-[env(safe-area-inset-left)] pr-[env(safe-area-inset-right)] pb-[calc(var(--tab-bar-height)+env(safe-area-inset-bottom)+16px)]">
+      <div className="mx-auto min-h-dvh max-w-(--page-max-width) pl-[env(safe-area-inset-left)] pr-[env(safe-area-inset-right)] pb-[calc(var(--tab-bar-height)+env(safe-area-inset-bottom)+var(--record-bar-offset)+var(--keyboard-inset)+16px)]">
         <Outlet />
       </div>
       <UpdatePrompt />

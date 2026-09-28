@@ -49,6 +49,32 @@ body {
   }
 }
 
+@keyframes sheet-in {
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: none;
+  }
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.anim-sheet {
+  animation: sheet-in var(--motion-duration) var(--motion-ease);
+}
+
+.anim-fade {
+  animation: fade-in var(--motion-duration) var(--motion-ease);
+}
+
 .anim-push {
   animation: page-push var(--motion-duration) var(--motion-ease);
 }
@@ -59,7 +85,9 @@ body {
 
 @media (prefers-reduced-motion: reduce) {
   .anim-push,
-  .anim-toast {
+  .anim-toast,
+  .anim-sheet,
+  .anim-fade {
     animation: none;
   }
 }

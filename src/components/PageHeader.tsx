@@ -1,4 +1,5 @@
 import { ChevronLeft } from 'lucide-react'
+import type { ReactNode } from 'react'
 import { useLocation, useNavigate } from 'react-router'
 import { strings } from '../strings'
 
@@ -6,10 +7,12 @@ type Props = {
   title: string
   // 子頁才傳：返回的上一層路徑；直接開啟子頁網址（沒有上一頁）時使用
   backTo?: string
+  // 右上角操作（例：新增頁的「清除」）
+  action?: ReactNode
 }
 
 // 頁面標題列；頂端以 safe-area 避開瀏海（9.2）
-export function PageHeader({ title, backTo }: Props) {
+export function PageHeader({ title, backTo, action }: Props) {
   const navigate = useNavigate()
   const location = useLocation()
 
@@ -21,7 +24,7 @@ export function PageHeader({ title, backTo }: Props) {
 
   return (
     <header className="sticky top-0 z-10 bg-(--color-bg) pt-[env(safe-area-inset-top)]">
-      <div className="relative flex h-(--header-height) items-center justify-center px-12">
+      <div className="relative flex h-(--header-height) items-center justify-center px-16">
         {backTo !== undefined && (
           <button
             type="button"
@@ -33,6 +36,9 @@ export function PageHeader({ title, backTo }: Props) {
           </button>
         )}
         <h1 className="truncate text-lg font-semibold">{title}</h1>
+        {action !== undefined && action !== null && (
+          <div className="absolute right-1 top-1/2 -translate-y-1/2">{action}</div>
+        )}
       </div>
     </header>
   )
