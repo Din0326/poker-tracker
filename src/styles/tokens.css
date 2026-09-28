@@ -1,0 +1,69 @@
+/*
+ * 設計 token（第 9.3 節）
+ * 全 App 唯一可以出現色碼的地方；元件只能透過 var(--color-*) 使用。
+ * 淺色為基底，深色以 prefers-color-scheme 覆寫（跟隨系統）。
+ * 盈虧顏色由 <html data-profit-scheme> 決定：redGain（預設）= 紅贏綠輸，greenGain = 綠贏紅輸。
+ * 對比度由 tests/unit/contrast.test.ts 驗證 WCAG AA（4.5:1）。
+ */
+
+:root {
+  color-scheme: light dark;
+
+  /* 淺色主題 */
+  --color-bg: #f5f6f8;
+  --color-surface: #ffffff;
+  --color-surface-raised: #eceef2;
+  --color-border: #d5d9e0;
+  --color-text: #15171b;
+  --color-text-muted: #545b67;
+  --color-accent: #8a5a00;
+  --color-on-accent: #ffffff;
+  --color-danger: #b3261e;
+  --color-on-danger: #ffffff;
+  --color-red: #b3261e;
+  --color-green: #17703a;
+
+  /* 間距、圓角、動效 */
+  --radius-card: 12px;
+  --radius-control: 10px;
+  --tab-bar-height: 56px;
+  --header-height: 48px;
+  --page-max-width: 480px;
+  --touch-min: 44px;
+  --motion-duration: 200ms;
+  --motion-ease: cubic-bezier(0.2, 0, 0, 1);
+
+  /* 字型：系統字型堆疊，不載入網路字型 */
+  --font-sans: -apple-system, BlinkMacSystemFont, 'PingFang TC', 'Heiti TC', 'Microsoft JhengHei',
+    'Noto Sans TC', system-ui, sans-serif;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    /* 深色主題（設計主軸，牌室燈光偏暗）；--color-bg 同時作為 manifest 的 theme_color 與 background_color */
+    --color-bg: #0e1013;
+    --color-surface: #171a1f;
+    --color-surface-raised: #21252c;
+    --color-border: #2f343d;
+    --color-text: #eceef2;
+    --color-text-muted: #9ba2ae;
+    --color-accent: #e3b95f;
+    --color-on-accent: #1a1406;
+    --color-danger: #ff7a70;
+    --color-on-danger: #1f0503;
+    --color-red: #ff6f6f;
+    --color-green: #45d483;
+  }
+}
+
+/* 盈虧語意 token */
+:root,
+:root[data-profit-scheme='redGain'] {
+  --color-gain: var(--color-red);
+  --color-loss: var(--color-green);
+}
+
+:root[data-profit-scheme='greenGain'] {
+  --color-gain: var(--color-green);
+  --color-loss: var(--color-red);
+}
