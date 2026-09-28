@@ -30,10 +30,16 @@ test('寬度大於 480px 時內容置中、最大寬度 480px', async ({ page })
 })
 
 test('可點擊元件觸控區域至少 44×44px', async ({ page }) => {
-  for (const hash of ['#/settings', '#/settings/venues']) {
+  for (const hash of ['#/', '#/settings', '#/settings/venues']) {
     await page.goto(`./${hash}`)
     await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
-    const targets = page.locator('a:visible, button:visible')
+    if (hash === '#/') {
+      // 新增頁：等表單載入，並切到 MTT、加一列買入，讓刪除鈕與「清除」也出現
+      await page.getByRole('button', { name: 'MTT', exact: true }).click()
+      await page.getByRole('button', { name: '＋ 再買入' }).click()
+      await expect(page.getByRole('button', { name: '清除' })).toBeVisible()
+    }
+    const targets = page.locator('a:visible, button:visible, select:visible, input:visible, textarea:visible')
     const count = await targets.count()
     expect(count).toBeGreaterThan(0)
     for (let i = 0; i < count; i++) {
