@@ -46,15 +46,16 @@ for (const title of ['場地管理', '盲注管理']) {
 }
 
 test('直接開啟子頁網址（無上一頁）時，返回鈕回到上一層', async ({ page }) => {
+  // P3 起不存在的 id 會顯示「返回列表」按鈕，所以返回鈕以 exact 比對名稱
   await page.goto('./#/sessions/abc')
   await expect(page.getByRole('heading', { level: 1 })).toHaveText('場次詳情')
-  await page.getByRole('button', { name: '返回' }).click()
+  await page.getByRole('button', { name: '返回', exact: true }).click()
   await expect(page.getByRole('heading', { level: 1 })).toHaveText('紀錄')
 
   await page.goto('about:blank')
   await page.goto('./#/sessions/abc/edit')
   await expect(page.getByRole('heading', { level: 1 })).toHaveText('編輯場次')
-  await page.getByRole('button', { name: '返回' }).click()
+  await page.getByRole('button', { name: '返回', exact: true }).click()
   await expect(page.getByRole('heading', { level: 1 })).toHaveText('場次詳情')
   expect(hashPath(page.url())).toBe('/sessions/abc')
 })
