@@ -18,11 +18,13 @@
     "screenshots": "node scripts/screenshots.mjs"
   },
   "dependencies": {
+    "@hookform/resolvers": "5.9.1",
     "dayjs": "1.11.23",
     "dexie": "4.4.6",
     "lucide-react": "1.48.0",
     "react": "19.3.0",
     "react-dom": "19.3.0",
+    "react-hook-form": "7.89.0",
     "react-router": "7.18.4",
     "zod": "4.6.5"
   },
@@ -30,6 +32,9 @@
     "@eslint/js": "10.0.1",
     "@playwright/test": "1.63.0",
     "@tailwindcss/vite": "4.3.3",
+    "@testing-library/dom": "10.4.2",
+    "@testing-library/react": "16.3.3",
+    "@testing-library/user-event": "14.6.7",
     "@types/node": "26.6.3",
     "@types/react": "19.3.0",
     "@types/react-dom": "19.3.0",
@@ -39,6 +44,7 @@
     "eslint-plugin-react-refresh": "0.5.7",
     "fake-indexeddb": "6.2.5",
     "globals": "17.12.0",
+    "happy-dom": "20.14.5",
     "sharp": "0.35.5",
     "tailwindcss": "4.3.3",
     "typescript": "6.0.3",
