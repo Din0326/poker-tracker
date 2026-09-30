@@ -1,12 +1,21 @@
 // 7.1 列表篩選（純函式）：類型、期間（4.5）、關鍵字、報表分組跳入的場地 / 盲注 / 名稱
-import { filterByRange, resolvePeriod, type PeriodError, type PeriodFilter, type Session, type SessionType } from '../../domain'
+import {
+  PERIOD_KINDS,
+  filterByRange,
+  resolvePeriod,
+  selectionToFilter,
+  type PeriodError,
+  type PeriodFilter,
+  type PeriodKind,
+  type Session,
+  type SessionType,
+} from '../../domain'
 
 export type TypeFilter = 'all' | SessionType
 export const TYPE_FILTERS = ['all', 'cash', 'mtt', 'timed_mtt'] as const satisfies readonly TypeFilter[]
 
-export type PeriodKind = PeriodFilter['kind']
-/** 與 6.1 相同順序：全部 / 近半年 / 近三個月 / 自訂 */
-export const PERIOD_KINDS = ['all', 'last6Months', 'last3Months', 'custom'] as const satisfies readonly PeriodKind[]
+// 期間選項定義在 domain（報表與列表共用），這裡轉出維持既有 import 路徑
+export { PERIOD_KINDS, type PeriodKind }
 
 /** 篩選列上可操作的條件（Q2：App 開啟期間保留） */
 export interface ListFilters {
@@ -76,7 +85,7 @@ export function matchKeyword(s: Pick<Session, 'name' | 'note'>, normalized: stri
 
 /** 篩選列的期間選項轉為 domain 的 PeriodFilter */
 export function toPeriodFilter(f: Pick<ListFilters, 'period' | 'from' | 'to'>): PeriodFilter {
-  return f.period === 'custom' ? { kind: 'custom', from: f.from, to: f.to } : { kind: f.period }
+  return selectionToFilter(f)
 }
 
 export interface FilterResult {

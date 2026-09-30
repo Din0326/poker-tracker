@@ -131,6 +131,19 @@ export const strings = {
     venues: '場地管理',
     stakes: '盲注管理',
   },
+  // 期間選擇（4.5；報表 6.1 與紀錄列表 7.1 共用）
+  period: {
+    label: '期間',
+    options: {
+      all: '全部',
+      last6Months: '近半年',
+      last3Months: '近三個月',
+      custom: '自訂',
+    },
+    from: '起日',
+    to: '迄日',
+    fromAfterTo: '起日不可晚於迄日',
+  },
   placeholder: {
     comingIn: (phase: string) => `此功能將於 ${phase} 實作`,
   },
@@ -145,16 +158,6 @@ export const strings = {
       label: '篩選',
       type: '類型',
       typeAll: '全部',
-      period: '期間',
-      periodOptions: {
-        all: '全部',
-        last6Months: '近半年',
-        last3Months: '近三個月',
-        custom: '自訂',
-      },
-      from: '起日',
-      to: '迄日',
-      fromAfterTo: '起日不可晚於迄日',
       keyword: '關鍵字',
       keywordPlaceholder: '搜尋名稱或備註',
       clear: '清除篩選',
@@ -225,6 +228,76 @@ export const strings = {
       deleted: '已刪除',
       restore: '復原',
       restoreFailed: '復原失敗',
+    },
+  },
+  // 第 6 節報表
+  report: {
+    tabsLabel: '分類',
+    tabs: {
+      all: '總體',
+      cash: '現金桌',
+      mtt: 'MTT',
+      timed_mtt: '限時 MTT',
+    },
+    metricsLabel: '指標',
+    /** 6.2 指標名稱（ABI 以表格 4.3 的完整名稱顯示） */
+    metrics: {
+      profit: '盈利',
+      count: '場次數',
+      winRate: '贏率',
+      roi: 'ROI',
+      hourly: '時薪',
+      bbPerHour: 'bb/hr',
+      itm: 'ITM%',
+      placePercentile: '平均名次百分位',
+      avgProfit: '平均每場盈利',
+      abi: '平均單次買入（ABI）',
+      avgEntries: '平均進場次數',
+      totalHours: '總時數',
+      totalBuyIn: '總投入',
+      totalCashOut: '總到手',
+      totalFee: '總服務費',
+      feeRate: '服務費比例',
+    },
+    /** 總體頁指標卡下方的各類型小表 */
+    breakdown: {
+      label: '各類型',
+      count: (n: number) => `${n} 場`,
+      open: (type: string) => `切換到${type}頁籤`,
+    },
+    noRecordsInPeriod: '這個期間沒有紀錄',
+    curve: {
+      title: '累積盈利曲線',
+      needTwo: '至少需要 2 場紀錄才能畫出曲線',
+      /** tooltip 日期 `2026/09/27` */
+      date: (y: string, m: string, d: string) => `${y}/${m}/${d}`,
+      sessionProfit: '該場盈利',
+      cumulative: '累積盈利',
+      /** 圖表的無障礙名稱 */
+      chartLabel: (n: number, total: string) => `累積盈利曲線，共 ${n} 場，累積 ${total}`,
+    },
+    groups: {
+      title: '分組統計',
+      groupByLabel: '分組依據',
+      options: {
+        venue: '場地',
+        stake: '盲注級別',
+        name: '名稱',
+      },
+      unspecified: '未指定',
+      unnamed: '未命名',
+      archivedSuffix: '（已封存）',
+      /** 場地或盲注參照不存在（資料異常，不應發生） */
+      unknownRef: '（找不到）',
+      columns: {
+        count: '場次數',
+        profit: '盈利',
+        totalFee: '總服務費',
+        hourly: '時薪',
+        bbPerHour: 'bb/hr',
+        roi: 'ROI',
+        itm: 'ITM%',
+      },
     },
   },
   settings: {

@@ -1,11 +1,9 @@
 import { Search, X } from 'lucide-react'
-import { FieldError } from '../../components/FieldError'
+import { CustomRangeFields, PeriodSelect } from '../../components/PeriodPicker'
 import { inputClass } from '../../components/controlStyles'
-import { SelectBox } from '../../components/SelectBox'
 import type { PeriodError } from '../../domain'
-import { describedBy } from '../../lib/aria'
 import { strings } from '../../strings'
-import { PERIOD_KINDS, TYPE_FILTERS, type ExtraFilters, type ListFilters, type PeriodKind, type TypeFilter } from './listFilters'
+import { TYPE_FILTERS, type ExtraFilters, type ListFilters, type TypeFilter } from './listFilters'
 
 const t = strings.sessions.filters
 const labelClass = 'mb-1 block text-sm font-medium text-(--color-text-muted)'
@@ -29,10 +27,8 @@ function typeLabel(type: TypeFilter): string {
   return type === 'all' ? t.typeAll : strings.sessionTypes[type]
 }
 
-// 7.1 篩選列：類型分段選擇器、期間選單（自訂時展開起迄日期）、關鍵字、額外篩選標籤、清除篩選
+// 7.1 篩選列：類型分段選擇器、期間選單（自訂時展開起迄日期；與報表共用 PeriodPicker）、關鍵字、額外篩選標籤、清除篩選
 export function FilterBar({ filters, onChange, tags, onRemoveTag, periodError, filtering, onClear }: Props) {
-  const rangeError = periodError === 'fromAfterTo' ? t.fromAfterTo : undefined
-
   return (
     <section aria-label={t.label} className="mt-2 space-y-3">
       <div
@@ -59,22 +55,7 @@ export function FilterBar({ filters, onChange, tags, onRemoveTag, periodError, f
       </div>
 
       <div className="grid grid-cols-[8.5rem_1fr] gap-3">
-        <div className="min-w-0">
-          <label htmlFor="sl-period" className={labelClass}>
-            {t.period}
-          </label>
-          <SelectBox
-            id="sl-period"
-            value={filters.period}
-            onChange={(e) => onChange({ period: e.target.value as PeriodKind })}
-          >
-            {PERIOD_KINDS.map((kind) => (
-              <option key={kind} value={kind}>
-                {t.periodOptions[kind]}
-              </option>
-            ))}
-          </SelectBox>
-        </div>
+        <PeriodSelect idPrefix="sl" value={filters.period} onChange={(period) => onChange({ period })} />
         <div className="min-w-0">
           <label htmlFor="sl-keyword" className={labelClass}>
             {t.keyword}
@@ -100,39 +81,7 @@ export function FilterBar({ filters, onChange, tags, onRemoveTag, periodError, f
       </div>
 
       {filters.period === 'custom' && (
-        <div>
-          <div className="grid grid-cols-2 gap-3">
-            <div className="min-w-0">
-              <label htmlFor="sl-from" className={labelClass}>
-                {t.from}
-              </label>
-              <input
-                id="sl-from"
-                type="date"
-                value={filters.from}
-                onChange={(e) => onChange({ from: e.target.value })}
-                aria-invalid={rangeError ? true : undefined}
-                aria-describedby={describedBy(rangeError && 'sl-range-error')}
-                className={`num ${inputClass}`}
-              />
-            </div>
-            <div className="min-w-0">
-              <label htmlFor="sl-to" className={labelClass}>
-                {t.to}
-              </label>
-              <input
-                id="sl-to"
-                type="date"
-                value={filters.to}
-                onChange={(e) => onChange({ to: e.target.value })}
-                aria-invalid={rangeError ? true : undefined}
-                aria-describedby={describedBy(rangeError && 'sl-range-error')}
-                className={`num ${inputClass}`}
-              />
-            </div>
-          </div>
-          <FieldError id="sl-range-error" message={rangeError} />
-        </div>
+        <CustomRangeFields idPrefix="sl" value={filters} onChange={onChange} error={periodError} />
       )}
 
       {(tags.length > 0 || filtering) && (

@@ -10,6 +10,25 @@ export type PeriodFilter =
   /** from、to 皆為 `YYYY-MM-DD`，兩端皆含 */
   | { kind: 'custom'; from: string; to: string }
 
+export type PeriodKind = PeriodFilter['kind']
+/** 期間選單的選項順序（6.1、7.1）：全部 / 近半年 / 近三個月 / 自訂 */
+export const PERIOD_KINDS = ['all', 'last6Months', 'last3Months', 'custom'] as const satisfies readonly PeriodKind[]
+
+/**
+ * 畫面上的期間選擇（報表與紀錄列表共用）。
+ * from、to 為自訂期間的起迄 `YYYY-MM-DD`，'' 代表未填；只有 period 為 custom 時使用。
+ */
+export interface PeriodSelection {
+  period: PeriodKind
+  from: string
+  to: string
+}
+
+/** 期間選擇轉為 PeriodFilter */
+export function selectionToFilter(sel: PeriodSelection): PeriodFilter {
+  return sel.period === 'custom' ? { kind: 'custom', from: sel.from, to: sel.to } : { kind: sel.period }
+}
+
 /** 解析後的日期範圍（`YYYY-MM-DD`，兩端皆含）；null 代表該端不限 */
 export interface DateRange {
   from: string | null
