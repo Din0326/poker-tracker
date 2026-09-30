@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { formatBbProfit, formatDuration, formatFinishPlace, formatTimestamp } from '../../src/domain/format'
+import { formatBbProfit, formatDuration, formatFieldSizeOnly, formatFinishPlace, formatTimestamp } from '../../src/domain/format'
 
 // 7.2 詳情用的顯示格式
 const MINUS = '−'
@@ -27,6 +27,15 @@ describe('7.2 formatFinishPlace', () => {
   it('`第 12 名 / 180 人（前 6.7%）`', () => {
     expect(formatFinishPlace(12, 180, 12 / 180)).toBe('第 12 名 / 180 人（前 6.7%）')
     expect(formatFinishPlace(1, 2, 0.5)).toBe('第 1 名 / 2 人（前 50.0%）')
+  })
+})
+
+describe('7.2 formatFieldSizeOnly', () => {
+  it('MTT 只填參賽人數：`共 180 人`', () => {
+    expect(formatFieldSizeOnly(180)).toBe('共 180 人')
+    expect(formatFieldSizeOnly(2)).toBe('共 2 人')
+    // 與 formatFinishPlace 一致，人數不加千分位
+    expect(formatFieldSizeOnly(1200)).toBe('共 1200 人')
   })
 })
 

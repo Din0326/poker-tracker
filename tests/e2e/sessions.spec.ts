@@ -321,6 +321,30 @@ test('7.2 詳情顯示內容：MTT 名次百分位、現金桌 bb 盈利、備�
   await expect(page.getByTestId('detail-note')).toHaveText('—')
 })
 
+test('7.2 MTT 只填參賽人數時詳情顯示『共 N 人』', async ({ page }) => {
+  // 只填參賽人數（finishPlace 為 null）、兩者都沒填各一筆，另加有名次的 m1 對照
+  const fieldOnly: Session = { ...f.m1, id: uuid(0x301), startAt: '2026-09-20T13:00', fieldSize: 180, finishPlace: null }
+  const neither: Session = { ...f.m1, id: uuid(0x302), startAt: '2026-09-21T13:00', fieldSize: null, finishPlace: null }
+  await seed(page, { venues, stakes, sessions: [f.m1, fieldOnly, neither] })
+  await openList(page)
+
+  await openDetail(page, fieldOnly.id)
+  await expect(page.getByTestId('detail-fieldSize')).toHaveText('參賽人數共 180 人')
+  await expect(page.getByTestId('detail-finish')).toHaveCount(0)
+
+  // 兩者都沒填：不顯示參賽人數與名次列
+  await page.getByRole('button', { name: '返回', exact: true }).click()
+  await openDetail(page, neither.id)
+  await expect(page.getByTestId('detail-fieldSize')).toHaveCount(0)
+  await expect(page.getByTestId('detail-finish')).toHaveCount(0)
+
+  // 有填名次：維持名次列，不另外顯示參賽人數列
+  await page.getByRole('button', { name: '返回', exact: true }).click()
+  await openDetail(page, f.m1.id)
+  await expect(page.getByTestId('detail-finish')).toHaveText('名次第 12 名 / 180 人（前 6.7%）')
+  await expect(page.getByTestId('detail-fieldSize')).toHaveCount(0)
+})
+
 test('7.2 網址 id 不存在：顯示「找不到這筆紀錄」與返回列表', async ({ page }) => {
   await seed(page)
   await page.goto(`./#/sessions/${uuid(0xdead)}`)

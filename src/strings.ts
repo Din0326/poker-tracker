@@ -200,6 +200,8 @@ export const strings = {
       hourly: '時薪',
       bbProfit: 'bb 盈利',
       finish: '名次',
+      /** MTT 只填參賽人數、沒填名次時的列標籤 */
+      fieldSize: '參賽人數',
       createdAt: (ts: string) => `建立時間 ${ts}`,
       updatedAt: (ts: string) => `最後修改 ${ts}`,
       archivedSuffix: '（已封存）',
@@ -269,6 +271,8 @@ export const strings = {
     /** MTT 名次：`第 12 名 / 180 人（前 6.7%）` */
     finishPlace: (place: number, fieldSize: number, percent: string) =>
       `第 ${place} 名 / ${fieldSize} 人（前 ${percent}%）`,
+    /** MTT 只填參賽人數、沒填名次：`共 180 人` */
+    fieldSizeOnly: (fieldSize: number) => `共 ${fieldSize} 人`,
     /** 標題組合：現金桌 `場地 · 50/100` */
     titleJoin: (a: string, b: string) => `${a} · ${b}`,
   },

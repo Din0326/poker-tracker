@@ -13,6 +13,7 @@ import {
   feeTotal,
   formatBbProfit,
   formatDuration,
+  formatFieldSizeOnly,
   formatFinishPlace,
   formatHourly,
   formatMoney,
@@ -274,6 +275,12 @@ export function SessionDetailPage() {
         {place && place.value !== null && session.finishPlace !== null && session.fieldSize !== null && (
           <Row label={t.finish} testId="detail-finish">
             {formatFinishPlace(session.finishPlace, session.fieldSize, place.value)}
+          </Row>
+        )}
+        {/* MTT 只填參賽人數、沒填名次時，於名次列位置顯示參賽人數 */}
+        {session.type === 'mtt' && session.finishPlace === null && session.fieldSize !== null && (
+          <Row label={t.fieldSize} testId="detail-fieldSize">
+            {formatFieldSizeOnly(session.fieldSize)}
           </Row>
         )}
       </Section>
