@@ -1,8 +1,10 @@
 import { test, type Page } from '@playwright/test'
 import dayjs from 'dayjs'
 import { generateSeedData } from '../../src/dev/seed'
-import { groupByButton, openReport, reportTab } from './helpers/report'
-import { V_6BET, fixture, openDetail, openList, seed } from './helpers/sessions'
+import { putRecords } from './helpers/idb'
+import { groupByButton, manySessions, openReport, reportTab } from './helpers/report'
+import { chooseImportFile, openActions } from './helpers/settings'
+import { V_6BET, fixture, fixtureSessions, openDetail, openList, seed, stakes, venues } from './helpers/sessions'
 import {
   addStakeInline,
   addVenueInline,
@@ -18,10 +20,6 @@ import {
 // 只在 npm run screenshots 時執行（見 playwright.config.ts testIgnore），避免一般測試改動 docs/
 const outDir = process.env.SCREENSHOTS_DIR
 
-const screens = [
-  { name: 'settings', hash: '#/settings' },
-  { name: 'venues', hash: '#/settings/venues' },
-]
 
 /** 關閉加入主畫面提示，讓表單內容完整入鏡 */
 async function dismissInstallBanner(page: Page) {
@@ -330,6 +328,138 @@ const reportStates: { name: string; lower?: boolean; setup: (page: Page) => Prom
   },
 ]
 
+// P5 設定、場地與盲注管理、匯入、清除、備份提醒
+const settingsStates: { name: string; setup: (page: Page) => Promise<void> }[] = [
+  {
+    name: 'settings-top',
+    setup: async (page) => {
+      await seed(page)
+      await page.goto('./#/settings')
+      await page.getByRole('heading', { level: 2, name: '資料備份' }).waitFor()
+    },
+  },
+  {
+    name: 'settings-bottom',
+    setup: async (page) => {
+      await seed(page)
+      await putRecords(page, 'settings', [{ key: 'lastBackupAt', value: '2026-09-20T22:30:00+08:00' }])
+      await page.goto('./#/settings')
+      await page.getByRole('heading', { level: 2, name: '資料備份' }).waitFor()
+      await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight))
+    },
+  },
+  {
+    name: 'venues',
+    setup: async (page) => {
+      await seed(page)
+      await putRecords(page, 'venues', [{ id: '00000000-0000-4000-8000-000000000103', name: 'Ace Club', archived: false, sortOrder: 2 }])
+      await page.goto('./#/settings/venues')
+      await page.getByText('已封存（1）').click()
+      await page.getByTestId('archived-list').waitFor()
+    },
+  },
+  {
+    name: 'venues-empty',
+    setup: async (page) => {
+      await page.goto('./#/settings/venues')
+      await page.getByText('還沒有場地').waitFor()
+    },
+  },
+  {
+    name: 'venues-actions',
+    setup: async (page) => {
+      await seed(page)
+      await page.goto('./#/settings/venues')
+      await openActions(page, '6bet')
+    },
+  },
+  {
+    name: 'venues-rename',
+    setup: async (page) => {
+      await seed(page)
+      await page.goto('./#/settings/venues')
+      const sheet = await openActions(page, '6bet')
+      await sheet.getByRole('button', { name: '改名' }).click()
+      await page.getByRole('dialog', { name: '場地改名' }).waitFor()
+    },
+  },
+  {
+    name: 'stakes',
+    setup: async (page) => {
+      await seed(page)
+      await putRecords(page, 'stakes', [{ id: '00000000-0000-4000-8000-000000000203', sb: 200, bb: 400, archived: false, sortOrder: 2 }])
+      await page.goto('./#/settings/stakes')
+      await page.getByText('已封存（1）').click()
+      await page.getByTestId('archived-list').waitFor()
+    },
+  },
+  {
+    name: 'stakes-actions',
+    setup: async (page) => {
+      await seed(page)
+      await putRecords(page, 'stakes', [{ id: '00000000-0000-4000-8000-000000000203', sb: 200, bb: 400, archived: false, sortOrder: 2 }])
+      await page.goto('./#/settings/stakes')
+      await openActions(page, '200/400')
+    },
+  },
+  {
+    name: 'import-confirm',
+    setup: async (page) => {
+      await seed(page)
+      await page.goto('./#/settings')
+      await page.getByRole('heading', { level: 2, name: '資料備份' }).waitFor()
+      const backup = {
+        app: 'poker-tracker',
+        schemaVersion: 1,
+        exportedAt: '2026-09-28T21:05:00+08:00',
+        sessions: fixtureSessions.slice(0, 5),
+        venues,
+        stakes,
+        settings: {},
+      }
+      await chooseImportFile(page, JSON.stringify(backup))
+      await page.getByRole('dialog', { name: '匯入備份？' }).waitFor()
+    },
+  },
+  {
+    name: 'import-error',
+    setup: async (page) => {
+      await seed(page)
+      await page.goto('./#/settings')
+      await page.getByRole('heading', { level: 2, name: '資料備份' }).waitFor()
+      const bad = {
+        app: 'poker-tracker',
+        schemaVersion: 1,
+        exportedAt: '2026-09-28T21:05:00+08:00',
+        sessions: fixtureSessions.map((s, i) => (i === 2 ? { ...s, buyIns: [{ amount: 3400, fee: 3500 }] } : s)),
+        venues,
+        stakes,
+        settings: {},
+      }
+      await chooseImportFile(page, JSON.stringify(bad))
+      await page.getByRole('dialog', { name: '無法匯入' }).waitFor()
+    },
+  },
+  {
+    name: 'clear-confirm',
+    setup: async (page) => {
+      await seed(page)
+      await page.goto('./#/settings')
+      await page.getByRole('heading', { level: 2, name: '資料備份' }).waitFor()
+      await page.getByRole('button', { name: '清除所有資料' }).click()
+      await page.getByRole('dialog').getByLabel('請輸入「刪除」以確認').fill('刪')
+    },
+  },
+  {
+    name: 'report-backup-reminder',
+    setup: async (page) => {
+      await seed(page, { venues, stakes, sessions: [...fixtureSessions, ...manySessions(5)] })
+      await openReport(page)
+      await page.getByTestId('backup-reminder').waitFor()
+    },
+  },
+]
+
 for (const scheme of ['dark', 'light'] as const) {
   for (const state of reportStates) {
     test(`截圖 ${state.name}-${scheme}`, async ({ page }) => {
@@ -356,12 +486,11 @@ for (const scheme of ['dark', 'light'] as const) {
     })
   }
 
-  for (const screen of screens) {
-    test(`截圖 ${screen.name}-${scheme}`, async ({ page }) => {
+  for (const state of settingsStates) {
+    test(`截圖 ${state.name}-${scheme}`, async ({ page }) => {
       await page.emulateMedia({ colorScheme: scheme, reducedMotion: 'reduce' })
-      await page.goto(`./${screen.hash}`)
-      await page.getByRole('heading', { level: 1 }).waitFor()
-      await page.screenshot({ path: `${outDir}/${screen.name}-${scheme}.png` })
+      await state.setup(page)
+      await page.screenshot({ path: `${outDir}/${state.name}-${scheme}.png` })
     })
   }
 

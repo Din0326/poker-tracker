@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test'
 import { waitForAnimations } from './helpers/layout'
 
-const pages = ['#/', '#/sessions', '#/report', '#/settings', '#/settings/venues', '#/sessions/x']
+const pages = ['#/', '#/sessions', '#/report', '#/settings', '#/settings/venues', '#/settings/stakes', '#/sessions/x']
 
 // 9.2：375–430px 間不得出現橫向捲動
 for (const width of [375, 390, 430]) {
@@ -31,7 +31,7 @@ test('寬度大於 480px 時內容置中、最大寬度 480px', async ({ page })
 })
 
 test('可點擊元件觸控區域至少 44×44px', async ({ page }) => {
-  for (const hash of ['#/', '#/settings', '#/settings/venues']) {
+  for (const hash of ['#/', '#/settings', '#/settings/venues', '#/settings/stakes']) {
     await page.goto(`./${hash}`)
     await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
     if (hash === '#/') {
