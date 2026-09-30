@@ -13,14 +13,17 @@ const t = strings.addVenue
 type Props = {
   open: boolean
   onClose: () => void
+  /** 新增或改名成功後呼叫（新增時由呼叫端自動選取） */
   onCreated: (venue: Venue) => void
+  /** 指定時為改名模式（8.1）：標題改為「場地改名」，預填目前名稱，驗證規則同新增 */
+  venue?: Venue | undefined
 }
 
-// 5.3 行內新增場地：儲存後由呼叫端自動選取
-export function AddVenueSheet({ open, onClose, onCreated }: Props) {
+// 5.3 行內新增場地；8.1 場地管理的新增與改名共用
+export function AddVenueSheet({ open, onClose, onCreated, venue }: Props) {
   return (
-    <BottomSheet open={open} title={t.title} onClose={onClose}>
-      {open && <AddVenueForm onCancel={onClose} onCreated={onCreated} />}
+    <BottomSheet open={open} title={venue ? strings.manage.venues.renameTitle : t.title} onClose={onClose}>
+      {open && <AddVenueForm onCancel={onClose} onCreated={onCreated} venue={venue} />}
     </BottomSheet>
   )
 }
@@ -33,9 +36,17 @@ function validate(name: string): string | undefined {
   return undefined
 }
 
-function AddVenueForm({ onCancel, onCreated }: { onCancel: () => void; onCreated: (venue: Venue) => void }) {
+function AddVenueForm({
+  onCancel,
+  onCreated,
+  venue,
+}: {
+  onCancel: () => void
+  onCreated: (venue: Venue) => void
+  venue: Venue | undefined
+}) {
   const { repos } = useAppData()
-  const [name, setName] = useState('')
+  const [name, setName] = useState(venue?.name ?? '')
   const [error, setError] = useState<string | undefined>()
   const [submitted, setSubmitted] = useState(false)
   const [saving, setSaving] = useState(false)
@@ -50,7 +61,7 @@ function AddVenueForm({ onCancel, onCreated }: { onCancel: () => void; onCreated
     if (found) return inputRef.current?.focus()
     setSaving(true)
     try {
-      onCreated(await repos.venues.create(name))
+      onCreated(venue ? await repos.venues.rename(venue.id, name) : await repos.venues.create(name))
     } catch (err) {
       setSaving(false)
       setError(err instanceof DuplicateNameError ? t.errors.duplicate : strings.record.saveFailed)

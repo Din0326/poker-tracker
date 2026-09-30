@@ -3,7 +3,7 @@ import { BottomSheet } from '../../components/BottomSheet'
 import { primaryButtonClass, secondaryButtonClass } from '../../components/controlStyles'
 import { FieldError } from '../../components/FieldError'
 import { NumberInput } from '../../components/NumberInput'
-import { DuplicateStakeError } from '../../db'
+import { DuplicateStakeError, InUseError } from '../../db'
 import type { Stake } from '../../domain'
 import { describedBy } from '../../lib/aria'
 import { useAppData } from '../../lib/appData'
@@ -15,15 +15,18 @@ const t = strings.addStake
 type Props = {
   open: boolean
   onClose: () => void
+  /** 新增或修改成功後呼叫（新增時由呼叫端自動選取） */
   onCreated: (stake: Stake) => void
+  /** 指定時為修改模式（8.2，僅限未被參照的盲注）：標題改為「修改盲注」，預填目前的 sb、bb */
+  stake?: Stake | undefined
 }
 
-// 5.3 行內新增盲注：輸入小盲、大盲，儲存後由呼叫端自動選取
-export function AddStakeSheet({ open, onClose, onCreated }: Props) {
+// 5.3 行內新增盲注：輸入小盲、大盲，儲存後由呼叫端自動選取；8.2 盲注管理的新增與修改共用
+export function AddStakeSheet({ open, onClose, onCreated, stake }: Props) {
   return (
-    <BottomSheet open={open} title={t.title} onClose={onClose}>
-      {/* 每次開啟都重新建立內容，輸入與錯誤從空白開始 */}
-      {open && <AddStakeForm onCancel={onClose} onCreated={onCreated} />}
+    <BottomSheet open={open} title={stake ? strings.manage.stakes.editTitle : t.title} onClose={onClose}>
+      {/* 每次開啟都重新建立內容，輸入與錯誤從空白（或目前的值）開始 */}
+      {open && <AddStakeForm onCancel={onClose} onCreated={onCreated} stake={stake} />}
     </BottomSheet>
   )
 }
@@ -39,10 +42,18 @@ function validate(sb: string, bb: string): Errors {
   return errors
 }
 
-function AddStakeForm({ onCancel, onCreated }: { onCancel: () => void; onCreated: (stake: Stake) => void }) {
+function AddStakeForm({
+  onCancel,
+  onCreated,
+  stake,
+}: {
+  onCancel: () => void
+  onCreated: (stake: Stake) => void
+  stake: Stake | undefined
+}) {
   const { repos } = useAppData()
-  const [sb, setSb] = useState('')
-  const [bb, setBb] = useState('')
+  const [sb, setSb] = useState(stake ? String(stake.sb) : '')
+  const [bb, setBb] = useState(stake ? String(stake.bb) : '')
   const [errors, setErrors] = useState<Errors>({})
   const [submitted, setSubmitted] = useState(false)
   const [saving, setSaving] = useState(false)
@@ -66,11 +77,19 @@ function AddStakeForm({ onCancel, onCreated }: { onCancel: () => void; onCreated
     if (found.bb) return bbRef.current?.focus()
     setSaving(true)
     try {
-      const stake = await repos.stakes.create(Number(sb), Number(bb))
-      onCreated(stake)
+      const saved = stake
+        ? await repos.stakes.update(stake.id, Number(sb), Number(bb))
+        : await repos.stakes.create(Number(sb), Number(bb))
+      onCreated(saved)
     } catch (err) {
       setSaving(false)
-      setErrors({ bb: err instanceof DuplicateStakeError ? t.errors.duplicate : strings.record.saveFailed })
+      const message =
+        err instanceof DuplicateStakeError
+          ? t.errors.duplicate
+          : err instanceof InUseError
+            ? strings.manage.inUseError
+            : strings.record.saveFailed
+      setErrors({ bb: message })
       bbRef.current?.focus()
     }
   }
