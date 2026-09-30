@@ -1,9 +1,10 @@
+import { Suspense, lazy } from 'react'
 import { Navigate, Outlet, RouterProvider, createHashRouter, type RouteObject } from 'react-router'
+import { Page } from './components/Page'
 import { GlobalToast } from './components/GlobalToast'
 import { TabBar } from './components/TabBar'
 import { UpdatePrompt } from './components/UpdatePrompt'
 import { RecordPage } from './features/record/RecordPage'
-import { ReportPage } from './features/report/ReportPage'
 import { SessionDetailPage } from './features/sessions/SessionDetailPage'
 import { SessionEditPage } from './features/sessions/SessionEditPage'
 import { SessionsPage } from './features/sessions/SessionsPage'
@@ -12,6 +13,20 @@ import { StakesPage } from './features/settings/StakesPage'
 import { VenuesPage } from './features/settings/VenuesPage'
 import { useScrollMemory } from './lib/useScrollMemory'
 import { useKeyboardInset } from './lib/viewport'
+import { strings } from './strings'
+
+// 報表頁（含 Recharts）拆成獨立 chunk，進入報表時才載入；PWA 預先快取包含此 chunk，離線照常可用
+const ReportPage = lazy(() => import('./features/report/ReportPage').then((m) => ({ default: m.ReportPage })))
+
+function ReportFallback() {
+  return (
+    <Page title={strings.pages.report}>
+      <p role="status" className="py-10 text-center text-(--color-text-muted)">
+        {strings.common.loading}
+      </p>
+    </Page>
+  )
+}
 
 function AppLayout() {
   useScrollMemory()
@@ -38,7 +53,14 @@ const routes: RouteObject[] = [
       { path: 'sessions', element: <SessionsPage /> },
       { path: 'sessions/:id', element: <SessionDetailPage /> },
       { path: 'sessions/:id/edit', element: <SessionEditPage /> },
-      { path: 'report', element: <ReportPage /> },
+      {
+        path: 'report',
+        element: (
+          <Suspense fallback={<ReportFallback />}>
+            <ReportPage />
+          </Suspense>
+        ),
+      },
       { path: 'settings', element: <SettingsPage /> },
       { path: 'settings/venues', element: <VenuesPage /> },
       { path: 'settings/stakes', element: <StakesPage /> },
