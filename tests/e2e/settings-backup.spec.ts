@@ -224,7 +224,9 @@ test('8.6 匯出 CSV：BOM、標題列、欄數正確、含逗號與換行的備
   await seedAll(page)
   // 備註含逗號、引號與換行
   const tricky = { ...fixtureSessions[0]!, note: '第一行, 逗號\n第二行 "引號"' }
+  // 以原生 IndexedDB 直接寫入時 Dexie liveQuery 不會察覺，重新載入讓設定頁取得最新資料
   await putRecords(page, 'sessions', [tricky])
+  await page.reload()
   await openSettings(page)
   const { download, body } = await clickAndDownload(page, '匯出 CSV')
   expect(download.suggestedFilename()).toMatch(/^poker-sessions-\d{8}\.csv$/)

@@ -15,18 +15,24 @@ export interface AllData {
   settings: Partial<Settings>
 }
 
-/** 在同一個唯讀 transaction 內讀出四張表，確保匯出內容一致 */
+/**
+ * 讀出四張表（不自行開 transaction）。供 Dexie liveQuery 使用：liveQuery 會在同一個唯讀 transaction 內執行，
+ * 並在任一張表變更後重新執行，讓設定頁隨時持有最新的匯出資料。
+ */
+export async function queryAllData(db: PokerDb): Promise<AllData> {
+  const [sessions, venues, stakes, rows] = await Promise.all([
+    db.sessions.toArray(),
+    db.venues.toArray(),
+    db.stakes.toArray(),
+    db.settings.toArray(),
+  ])
+  const settings = Object.fromEntries(rows.map((r) => [r.key, r.value])) as Partial<Settings>
+  return { sessions, venues, stakes, settings }
+}
+
+/** 在同一個唯讀 transaction 內讀出四張表，確保內容一致 */
 export async function loadAllData(db: PokerDb): Promise<AllData> {
-  return db.transaction('r', [db.sessions, db.venues, db.stakes, db.settings], async () => {
-    const [sessions, venues, stakes, rows] = await Promise.all([
-      db.sessions.toArray(),
-      db.venues.toArray(),
-      db.stakes.toArray(),
-      db.settings.toArray(),
-    ])
-    const settings = Object.fromEntries(rows.map((r) => [r.key, r.value])) as Partial<Settings>
-    return { sessions, venues, stakes, settings }
-  })
+  return db.transaction('r', [db.sessions, db.venues, db.stakes, db.settings], () => queryAllData(db))
 }
 
 const allTables = (db: PokerDb) => [db.sessions, db.venues, db.stakes, db.settings]

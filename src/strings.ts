@@ -321,6 +321,9 @@ export const strings = {
     exported: '已匯出備份',
     exportedCsv: '已匯出 CSV',
     exportFailed: '匯出失敗，請再試一次',
+    /** 分享選單因失去使用者手勢被拒（NotAllowedError）：資料已備妥，再按一次即可 */
+    exportRetry: '檔案已準備好，請再按一次匯出',
+    preparing: '準備中…',
     importSheet: {
       title: '匯入備份？',
       current: '目前',

@@ -24,7 +24,11 @@ function downloadFile(file: File): void {
  * - 'shared'：分享選單完成
  * - 'downloaded'：已觸發下載
  * - 'cancelled'：使用者在分享選單按取消（AbortError），呼叫端不應更新 lastBackupAt、不顯示錯誤
- * 其他錯誤原樣丟出。
+ * 其他錯誤原樣丟出（包含失去使用者手勢時的 NotAllowedError，由呼叫端提示再按一次）。
+ *
+ * 【iOS 使用者手勢】navigator.share 必須在 transient user activation 內呼叫。
+ * 本函式在第一個 await 之前就同步呼叫 share（或觸發下載），呼叫端必須在 click 事件處理的同步路徑中
+ * 呼叫本函式，之前不得有任何 await（例如讀 DB）。
  */
 export async function exportFile(file: File): Promise<ExportOutcome> {
   const nav = navigator as Navigator & {
@@ -39,6 +43,7 @@ export async function exportFile(file: File): Promise<ExportOutcome> {
   }
   if (canShareFiles) {
     try {
+      // 同步呼叫（這一行之前沒有任何 await）
       await nav.share!({ files: [file] })
       return 'shared'
     } catch (err) {
