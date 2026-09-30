@@ -3,6 +3,7 @@ import dayjs from 'dayjs'
 import { generateSeedData } from '../../src/dev/seed'
 import type { Session } from '../../src/domain/types'
 import { readSettings, readStore } from './helpers/idb'
+import { waitForAnimations } from './helpers/layout'
 import {
   S_100,
   S_50,
@@ -658,6 +659,8 @@ test('列表與詳情：觸控區域至少 44×44、375px 無橫向捲動、分�
   await expect(page.getByTestId('filter-tag')).toHaveCount(2)
   for (const target of ['list', 'detail'] as const) {
     if (target === 'detail') await openDetail(page, f.m1.id)
+    // 詳情頁以推入動效進入：動畫中的 transform 會讓尺寸量到 43.999…（浮點誤差），等動畫結束再量
+    await waitForAnimations(page)
     await expect(nav(page)).toBeVisible()
     const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)
     expect(overflow, target).toBeLessThanOrEqual(0)
