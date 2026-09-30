@@ -1,4 +1,5 @@
 import { test, type Page } from '@playwright/test'
+import { V_6BET, fixture, openDetail, openList, seed } from './helpers/sessions'
 import {
   addStakeInline,
   addVenueInline,
@@ -15,7 +16,6 @@ import {
 const outDir = process.env.SCREENSHOTS_DIR
 
 const screens = [
-  { name: 'sessions', hash: '#/sessions' },
   { name: 'report', hash: '#/report' },
   { name: 'settings', hash: '#/settings' },
   { name: 'venues', hash: '#/settings/venues' },
@@ -128,7 +128,148 @@ const recordStates: { name: string; setup: (page: Page) => Promise<void> }[] = [
   },
 ]
 
+// P3 紀錄列表、詳情、編輯、刪除與復原
+const sessionStates: { name: string; bottom?: boolean; setup: (page: Page) => Promise<void> }[] = [
+  {
+    name: 'sessions-empty',
+    setup: async (page) => {
+      await page.goto('./#/sessions')
+      await page.getByText('還沒有紀錄').waitFor()
+    },
+  },
+  {
+    name: 'sessions-list',
+    setup: async (page) => {
+      await seed(page)
+      await openList(page)
+    },
+  },
+  {
+    name: 'sessions-filtered',
+    setup: async (page) => {
+      await seed(page)
+      await page.goto(
+        `./#/sessions?type=mtt&period=custom&from=2026-08-01&to=2026-09-30&venue=${V_6BET}&name=${encodeURIComponent('週日賽')}`,
+      )
+      await page.getByTestId('filter-tag').first().waitFor()
+      await page.getByLabel('關鍵字').fill('entry')
+      await page.getByTestId('session-row').first().waitFor()
+    },
+  },
+  {
+    name: 'sessions-no-match',
+    setup: async (page) => {
+      await seed(page)
+      await openList(page)
+      await page.getByLabel('關鍵字').fill('不存在的關鍵字')
+      await page.getByText('沒有符合條件的紀錄').waitFor()
+    },
+  },
+  {
+    name: 'detail-cash',
+    bottom: true,
+    setup: async (page) => {
+      await seed(page)
+      await openList(page)
+      await openDetail(page, fixture.c1.id)
+    },
+  },
+  {
+    name: 'detail-mtt',
+    bottom: true,
+    setup: async (page) => {
+      await seed(page)
+      await openList(page)
+      await openDetail(page, fixture.m1.id)
+    },
+  },
+  {
+    name: 'detail-archived',
+    bottom: true,
+    setup: async (page) => {
+      await seed(page)
+      await openList(page)
+      await openDetail(page, fixture.a1.id)
+    },
+  },
+  {
+    name: 'detail-not-found',
+    setup: async (page) => {
+      await seed(page)
+      await page.goto('./#/sessions/00000000-0000-4000-8000-00000000dead')
+      await page.getByText('找不到這筆紀錄').waitFor()
+    },
+  },
+  {
+    name: 'edit',
+    setup: async (page) => {
+      await seed(page)
+      await openList(page)
+      await openDetail(page, fixture.m1.id)
+      await page.getByRole('button', { name: '編輯' }).click()
+      await page.getByText('類型無法修改，如需更改請刪除後重新新增').waitFor()
+    },
+  },
+  {
+    name: 'edit-leave-confirm',
+    setup: async (page) => {
+      await seed(page)
+      await openList(page)
+      await openDetail(page, fixture.c1.id)
+      await page.getByRole('button', { name: '編輯' }).click()
+      await page.getByLabel('到手金額').fill('13500')
+      await page.getByRole('button', { name: '返回', exact: true }).click()
+      await page.getByRole('dialog', { name: '放棄變更？' }).waitFor()
+    },
+  },
+  {
+    name: 'delete-confirm',
+    setup: async (page) => {
+      await seed(page)
+      await openList(page)
+      await openDetail(page, fixture.m1.id)
+      await page.getByRole('button', { name: '刪除' }).click()
+      await page.getByRole('dialog', { name: '刪除這筆紀錄？' }).waitFor()
+    },
+  },
+  {
+    name: 'copy-draft-confirm',
+    setup: async (page) => {
+      await seed(page)
+      await page.getByLabel('買入（含服務費）', { exact: true }).fill('777')
+      await openList(page)
+      await openDetail(page, fixture.m1.id)
+      await page.getByRole('button', { name: '複製為新紀錄' }).click()
+      await page.getByRole('dialog', { name: '覆蓋目前的草稿？' }).waitFor()
+    },
+  },
+  {
+    name: 'undo-toast',
+    setup: async (page) => {
+      await seed(page)
+      await openList(page)
+      await openDetail(page, fixture.c2.id)
+      await page.getByRole('button', { name: '刪除' }).click()
+      await page.getByRole('dialog').getByRole('button', { name: '刪除' }).click()
+      await page.getByRole('status').filter({ hasText: '已刪除' }).waitFor()
+    },
+  },
+]
+
 for (const scheme of ['dark', 'light'] as const) {
+  for (const state of sessionStates) {
+    test(`截圖 ${state.name}-${scheme}`, async ({ page }) => {
+      await page.emulateMedia({ colorScheme: scheme, reducedMotion: 'reduce' })
+      await state.setup(page)
+      await page.screenshot({ path: `${outDir}/${state.name}-${scheme}.png` })
+      // 詳情頁較長：另拍捲到底部的畫面（不用 fullPage，固定的分頁列才會在正確位置）
+      if (state.bottom) {
+        await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight))
+        await page.screenshot({ path: `${outDir}/${state.name}-bottom-${scheme}.png` })
+      }
+    })
+  }
+
   for (const screen of screens) {
     test(`截圖 ${screen.name}-${scheme}`, async ({ page }) => {
       await page.emulateMedia({ colorScheme: scheme, reducedMotion: 'reduce' })

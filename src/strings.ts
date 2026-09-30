@@ -134,8 +134,107 @@ export const strings = {
   placeholder: {
     comingIn: (phase: string) => `此功能將於 ${phase} 實作`,
   },
+  // 第 7 節場次列表與詳情
+  sessions: {
+    empty: {
+      noRecords: '還沒有紀錄',
+      addFirst: '去新增第一場',
+      noMatch: '沒有符合條件的紀錄',
+    },
+    filters: {
+      label: '篩選',
+      type: '類型',
+      typeAll: '全部',
+      period: '期間',
+      periodOptions: {
+        all: '全部',
+        last6Months: '近半年',
+        last3Months: '近三個月',
+        custom: '自訂',
+      },
+      from: '起日',
+      to: '迄日',
+      fromAfterTo: '起日不可晚於迄日',
+      keyword: '關鍵字',
+      keywordPlaceholder: '搜尋名稱或備註',
+      clear: '清除篩選',
+      /** 報表分組跳入的額外篩選標籤（7.1），例 `場地：6bet` */
+      venueTag: (name: string) => `場地：${name}`,
+      stakeTag: (label: string) => `盲注：${label}`,
+      nameTag: (name: string) => `名稱：${name}`,
+      /** 未指定場地、未命名（6.4） */
+      unspecifiedVenue: '未指定',
+      unnamed: '未命名',
+      /** 網址帶入的場地或盲注 id 不存在時 */
+      unknownRef: '（找不到）',
+      removeTag: (label: string) => `移除篩選 ${label}`,
+    },
+    /** 列表頂端篩選結果彙總「共 26 場 · +$39,600」 */
+    summary: (count: number, profit: string) => `共 ${count} 場 · ${profit}`,
+    /** 月份標題「2026 年 9 月 · 8 場 · +$12,300」 */
+    monthHeader: (year: number, month: number, count: number, profit: string) =>
+      `${year} 年 ${month} 月 · ${count} 場 · ${profit}`,
+    /** 單列日期 `09/27` */
+    rowDate: (month: string, day: string) => `${month}/${day}`,
+    /** 錦標賽進場 2 次以上的小標籤 `×2` */
+    entriesBadge: (n: number) => `×${n}`,
+    entriesBadgeLabel: (n: number) => `進場 ${n} 次`,
+    loadingMore: '載入更多…',
+    detail: {
+      notFound: '找不到這筆紀錄',
+      backToList: '返回列表',
+      basicSection: '基本資料',
+      amountSection: '金額',
+      derivedSection: '該場數字',
+      noteSection: '備註',
+      startAt: '開始時間',
+      duration: '時長',
+      venue: '場地',
+      name: '名稱',
+      stake: '盲注',
+      buyInRow: (n: number) => `第 ${n} 次`,
+      buyInDetail: (amount: string, fee: string) => `${amount}，服務費 ${fee}`,
+      buyInTotal: '買入總額',
+      feeTotal: '服務費總額',
+      cashOut: '到手金額',
+      hourly: '時薪',
+      bbProfit: 'bb 盈利',
+      finish: '名次',
+      createdAt: (ts: string) => `建立時間 ${ts}`,
+      updatedAt: (ts: string) => `最後修改 ${ts}`,
+      archivedSuffix: '（已封存）',
+      edit: '編輯',
+      copy: '複製為新紀錄',
+      delete: '刪除',
+    },
+    deleteSheet: {
+      title: '刪除這筆紀錄？',
+      confirm: '刪除',
+      failed: '刪除失敗，請再試一次',
+    },
+    copySheet: {
+      title: '覆蓋目前的草稿？',
+      failed: '複製失敗，請再試一次',
+    },
+    editLeaveSheet: {
+      title: '放棄變更？',
+    },
+    undo: {
+      deleted: '已刪除',
+      restore: '復原',
+      restoreFailed: '復原失敗',
+    },
+  },
   settings: {
     listsSection: '常用清單',
+  },
+  // 開發用（11.1）：只在開發模式（import.meta.env.DEV）顯示，正式版不出現
+  dev: {
+    section: '開發工具',
+    seed: '產生 5,000 筆測試資料',
+    seeding: '產生中…',
+    seeded: (n: string) => `已產生 ${n} 筆測試資料`,
+    seedFailed: '產生失敗',
   },
   installBanner: {
     message: '建議加入主畫面，資料才不會與瀏覽器分開',
@@ -163,5 +262,14 @@ export const strings = {
     placePercentile: (percent: string, n: number) => `前 ${percent}%（n=${n}）`,
     /** 盲注顯示名稱 `sb/bb`（3.4） */
     stake: (sb: number, bb: number) => `${sb}/${bb}`,
+    /** 時長 `4 小時 30 分`（7.2） */
+    duration: (hours: number, minutes: number) => `${hours} 小時 ${minutes} 分`,
+    /** 單場 bb 盈利後綴：`+20.0 bb` */
+    bbSuffix: ' bb',
+    /** MTT 名次：`第 12 名 / 180 人（前 6.7%）` */
+    finishPlace: (place: number, fieldSize: number, percent: string) =>
+      `第 ${place} 名 / ${fieldSize} 人（前 ${percent}%）`,
+    /** 標題組合：現金桌 `場地 · 50/100` */
+    titleJoin: (a: string, b: string) => `${a} · ${b}`,
   },
 } as const

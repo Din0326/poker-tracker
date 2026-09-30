@@ -2,6 +2,7 @@ import { ChevronRight } from 'lucide-react'
 import { Link } from 'react-router'
 import { Page } from '../../components/Page'
 import { strings } from '../../strings'
+import { DevSeedSection } from './DevSeedSection'
 
 const links = [
   { to: '/settings/venues', label: strings.pages.venues },
@@ -27,6 +28,8 @@ export function SettingsPage() {
           ))}
         </ul>
       </section>
+      {/* 11.1：開發模式才出現的 seed 按鈕，放在設定頁最底部；正式建置時此分支為 false 而被移除 */}
+      {import.meta.env.DEV && <DevSeedSection />}
     </Page>
   )
 }

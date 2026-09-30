@@ -1,6 +1,6 @@
 import { ChevronLeft } from 'lucide-react'
 import type { ReactNode } from 'react'
-import { useLocation, useNavigate } from 'react-router'
+import { useGoBack } from '../lib/useGoBack'
 import { strings } from '../strings'
 
 type Props = {
@@ -13,14 +13,8 @@ type Props = {
 
 // 頁面標題列；頂端以 safe-area 避開瀏海（9.2）
 export function PageHeader({ title, backTo, action }: Props) {
-  const navigate = useNavigate()
-  const location = useLocation()
-
-  const goBack = () => {
-    // location.key 為 'default' 代表這是進入 App 的第一頁，沒有歷史可退
-    if (location.key !== 'default') navigate(-1)
-    else if (backTo) navigate(backTo, { replace: true })
-  }
+  // location.key 為 'default' 代表這是進入 App 的第一頁，沒有歷史可退（見 useGoBack）
+  const goBack = useGoBack(backTo)
 
   return (
     <header className="sticky top-0 z-10 bg-(--color-bg) pt-[env(safe-area-inset-top)]">
