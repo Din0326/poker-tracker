@@ -12,6 +12,7 @@ import {
   timedAt,
 } from './helpers/report'
 import { waitForAnimations } from './helpers/layout'
+import { openSettings } from './helpers/settings'
 import { fixture, hashPath, heading, nav, rows, seed, stakes, summary, typeFilter, venues } from './helpers/sessions'
 
 // 10.3 P4 報表（第 6 節）
@@ -288,6 +289,160 @@ test('曲線 tooltip：點按資料點顯示日期、類型、該場盈利、累
   await expect(tooltip.getByTestId('tooltip-heading')).toHaveText('2026/09/01 · 限時 MTT')
   await expect(tooltip.getByTestId('tooltip-profit')).toHaveText('該場盈利−$2,000')
   await expect(tooltip.getByTestId('tooltip-cumulative')).toHaveText('累積盈利+$5,000')
+})
+
+// ---------------------------------------------------------------------------
+// 6.3 水上水下顏色（v1.4）
+// ---------------------------------------------------------------------------
+
+/** 依序產生每場盈利為 profits[i] 的限時 MTT（每天一場），累積值即 profits 的前綴和 */
+function curveSessions(profits: number[]) {
+  return profits.map((profit, i) => {
+    const s = timedAt(100 + i, `2026-09-${String(i + 1).padStart(2, '0')}T20:00`, profit)
+    const buy = 10000
+    return { ...s, buyIns: [{ amount: buy, fee: 0 }], cashOut: buy + profit }
+  })
+}
+
+async function openCurve(page: Page, profits: number[]) {
+  await fixToday(page, '2026-09-30T12:00:00')
+  await seed(page, { sessions: curveSessions(profits) })
+  await openReport(page)
+  const curve = page.getByTestId('profit-curve')
+  await expect(curve).toHaveAttribute('data-points', String(profits.length))
+  await curve.scrollIntoViewIfNeeded()
+  return curve
+}
+
+/** 解析目前的 --color-gain / --color-loss 實際色值 */
+const toneColors = (page: Page) =>
+  page.evaluate(() => {
+    const resolve = (token: string) => {
+      const probe = document.createElement('span')
+      probe.style.color = `var(${token})`
+      document.body.append(probe)
+      const c = getComputedStyle(probe).color
+      probe.remove()
+      return c
+    }
+    return { gain: resolve('--color-gain'), loss: resolve('--color-loss') }
+  })
+
+/** 曲線 path 的 stroke 屬性、計算後顏色，以及（若指向漸層）漸層 stops 的 offset 與計算後顏色 */
+const curveStrokeInfo = (page: Page) =>
+  page.locator('[data-testid="profit-curve"] .recharts-line-curve').evaluate((path) => {
+    const attr = path.getAttribute('stroke') ?? ''
+    const m = /^url\(#([^)]+)\)$/.exec(attr)
+    const gradient = m ? document.getElementById(m[1]!) : null
+    const stops = gradient
+      ? [...gradient.querySelectorAll('stop')].map((s) => ({
+          offset: Number(s.getAttribute('offset')),
+          color: getComputedStyle(s).stopColor,
+        }))
+      : null
+    return {
+      attr,
+      computed: getComputedStyle(path).stroke,
+      gradientTag: gradient?.tagName ?? null,
+      units: gradient?.getAttribute('gradientUnits') ?? null,
+      stops,
+    }
+  })
+
+const dotFills = (page: Page) => dots(page).evaluateAll((els) => els.map((el) => getComputedStyle(el).fill))
+
+test('6.3 水上水下顏色：跨 0 時線條以 linearGradient 在 y = 0 硬切換，圓點與作用中圓點依正負著色，隨盈虧顏色設定改變', async ({
+  page,
+}) => {
+  // 累積值 +1,000、−500、+300 → max 1,000、min −500，切換點 offset = 1000 / 1500
+  const curve = await openCurve(page, [1000, -1500, 800])
+  const red = await toneColors(page)
+  expect(red.gain).not.toBe(red.loss)
+
+  const info = await curveStrokeInfo(page)
+  expect(info.attr).toMatch(/^url\(#[A-Za-z0-9_-]+\)$/)
+  expect(info.gradientTag).toBe('linearGradient')
+  // 預設 objectBoundingBox（bbox = 線條 path 的資料 min～max）
+  expect(info.units).toBeNull()
+  expect(info.stops!.map((s) => s.color)).toEqual([red.gain, red.gain, red.loss, red.loss])
+  const offsets = info.stops!.map((s) => s.offset)
+  expect(offsets[0]).toBe(0)
+  expect(offsets[1]).toBeCloseTo(1000 / 1500, 3)
+  expect(offsets[2]).toBeCloseTo(1000 / 1500, 3)
+  expect(offsets[3]).toBe(1)
+  expect(Math.abs(offsets[1]! - 2 / 3)).toBeLessThan(0.001)
+
+  // 幾何驗證：切換點換算成像素後與 Y=0 基準線同高（容差 1px）
+  const geo = await curve.evaluate((el, offset) => {
+    const path = el.querySelector<SVGPathElement>('.recharts-line-curve')!
+    const line = el.querySelector<SVGLineElement>('.recharts-reference-line line')!
+    const b = path.getBBox()
+    return { split: b.y + offset * b.height, baseline: Number(line.getAttribute('y1')) }
+  }, offsets[1]!)
+  expect(Math.abs(geo.split - geo.baseline)).toBeLessThan(1)
+
+  // 資料點圓圈依累積值：+1,000 gain、−500 loss、+300 gain
+  await expect(dots(page)).toHaveCount(3)
+  expect(await dotFills(page)).toEqual([red.gain, red.loss, red.gain])
+
+  // tooltip 啟用時的作用中圓點同理
+  const activeDot = curve.locator('.recharts-active-dot circle')
+  for (const [i, tone] of [
+    [1, 'loss'],
+    [2, 'gain'],
+  ] as const) {
+    const box = (await dots(page).nth(i).boundingBox())!
+    await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2)
+    await expect(page.getByTestId('curve-tooltip')).toBeVisible()
+    await expect(activeDot).toHaveCount(1)
+    await expect(activeDot).toHaveCSS('fill', red[tone])
+  }
+
+  // 切換盈虧顏色（綠色為贏）後回到報表：gain / loss 對調，曲線跟著改變
+  await openSettings(page)
+  await page.getByRole('group', { name: '盈虧顏色' }).getByRole('button', { name: '綠色為贏、紅色為輸' }).click()
+  await expect(page.locator('html')).toHaveAttribute('data-profit-scheme', 'greenGain')
+  await openReport(page)
+  const green = await toneColors(page)
+  expect(green).toEqual({ gain: red.loss, loss: red.gain })
+  const after = await curveStrokeInfo(page)
+  expect(after.stops!.map((s) => s.color)).toEqual([green.gain, green.gain, green.loss, green.loss])
+  expect(await dotFills(page)).toEqual([green.gain, green.loss, green.gain])
+})
+
+test('6.3 水上水下顏色：全部 ≥ 0 整條 gain（單色，不用漸層），剛好 0 的點視為水上', async ({ page }) => {
+  // 累積值 0、+500、+200：全部在 0 以上
+  await openCurve(page, [0, 500, -300])
+  const c = await toneColors(page)
+  const info = await curveStrokeInfo(page)
+  expect(info.attr).toBe('var(--color-gain)')
+  expect(info.computed).toBe(c.gain)
+  expect(info.stops).toBeNull()
+  await expect(page.getByTestId('curve-gradient')).toHaveCount(0)
+  expect(await dotFills(page)).toEqual([c.gain, c.gain, c.gain])
+})
+
+test('6.3 水上水下顏色：全部 < 0 整條 loss（單色，不用漸層）', async ({ page }) => {
+  // 累積值 −200、−700：全部在 0 以下
+  await openCurve(page, [-200, -500])
+  const c = await toneColors(page)
+  const info = await curveStrokeInfo(page)
+  expect(info.attr).toBe('var(--color-loss)')
+  expect(info.computed).toBe(c.loss)
+  expect(info.stops).toBeNull()
+  expect(await dotFills(page)).toEqual([c.loss, c.loss])
+})
+
+test('6.3 水上水下顏色：全部相同值（path 高度 0）時線條仍可見，stroke 不是失效的 url', async ({ page }) => {
+  // 累積值 +500、+500、+500
+  const curve = await openCurve(page, [500, 0, 0])
+  const c = await toneColors(page)
+  const info = await curveStrokeInfo(page)
+  expect(info.attr).not.toMatch(/url\(/)
+  expect(info.computed).toBe(c.gain)
+  const box = (await curve.locator('.recharts-line-curve').boundingBox())!
+  expect(box.width).toBeGreaterThan(100)
+  expect(box.height).toBeGreaterThan(0)
 })
 
 // ---------------------------------------------------------------------------

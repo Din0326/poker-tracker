@@ -5,6 +5,8 @@ import {
   buildCurve,
   buildMetricCards,
   buildTypeBreakdown,
+  curvePointTone,
+  curveStroke,
   filterByTab,
   toneValue,
 } from '../../src/features/report/reportModel'
@@ -217,5 +219,48 @@ describe('6.3 累積盈利曲線資料', () => {
     expect(curve.map((p) => p.profit)).toEqual([-500, 1000, 500])
     expect(curve.map((p) => p.cumulative)).toEqual([-500, 500, 1000])
     expect(curve[0]!.type).toBe('cash')
+  })
+})
+
+describe('6.3 水上水下顏色', () => {
+  it('跨 0：offset = max / (max − min)，在 y = 0 處硬切換', () => {
+    expect(curveStroke([1000, -500, 300])).toEqual({ kind: 'split', offset: 1000 / 1500 })
+    expect(curveStroke([-3000, 1000])).toEqual({ kind: 'split', offset: 0.25 })
+  })
+
+  it('只有 2 點：一正一負與兩點同號', () => {
+    expect(curveStroke([500, -500])).toEqual({ kind: 'split', offset: 0.5 })
+    expect(curveStroke([100, 200])).toEqual({ kind: 'solid', tone: 'gain' })
+    expect(curveStroke([-100, -200])).toEqual({ kind: 'solid', tone: 'loss' })
+  })
+
+  it('全部 ≥ 0 → 整條 gain；全部 < 0 → 整條 loss', () => {
+    expect(curveStroke([1, 2, 3, 4])).toEqual({ kind: 'solid', tone: 'gain' })
+    expect(curveStroke([-1, -2, -3])).toEqual({ kind: 'solid', tone: 'loss' })
+  })
+
+  it('剛好為 0：最低點為 0 時整條 gain；最高點為 0 時線條沒有任何一段在 0 之上，整條 loss', () => {
+    expect(curveStroke([0, 500, 0])).toEqual({ kind: 'solid', tone: 'gain' })
+    expect(curveStroke([0, -500])).toEqual({ kind: 'solid', tone: 'loss' })
+    expect(curveStroke([0, 0])).toEqual({ kind: 'solid', tone: 'gain' })
+  })
+
+  it('全部相同值（path 高度為 0）一律單色，不使用漸層', () => {
+    expect(curveStroke([700, 700, 700])).toEqual({ kind: 'solid', tone: 'gain' })
+    expect(curveStroke([-700, -700])).toEqual({ kind: 'solid', tone: 'loss' })
+  })
+
+  it('大量資料不會因展開參數超出呼叫堆疊', () => {
+    const values = Array.from({ length: 200_000 }, (_, i) => (i % 2 === 0 ? i : -i))
+    const s = curveStroke(values)
+    expect(s.kind).toBe('split')
+    expect(s.kind === 'split' && s.offset).toBeCloseTo(199_998 / (199_998 + 199_999), 10)
+  })
+
+  it('資料點顏色：≥ 0 為 gain（含 0）、< 0 為 loss', () => {
+    expect(curvePointTone(1000)).toBe('gain')
+    expect(curvePointTone(0)).toBe('gain')
+    expect(curvePointTone(-0)).toBe('gain')
+    expect(curvePointTone(-1)).toBe('loss')
   })
 })
