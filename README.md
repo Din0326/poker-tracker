@@ -1,4 +1,4 @@
-# 德州記帳
+# Poker Road
 
 德州撲克個人記帳 PWA。規格見 [docs/SPEC.md](docs/SPEC.md)。
 
@@ -17,7 +17,7 @@ npm run dev
 | `npm run check` | typecheck、ESLint、寫死中文與色碼檢查、Vitest |
 | `npm run e2e` | Playwright（WebKit、iPhone 14），會先建置再以 preview 測試 |
 | `npm run screenshots -- p0` | 產生深淺色截圖到 `docs/screenshots/p0/` |
-| `npm run icons` | 依 token 重新產生佔位圖示 |
+| `npm run icons` | 依 token 重新產生 App 圖示（加 `-- --preview <路徑>` 另輸出預覽圖） |
 
 ## 約定
 
