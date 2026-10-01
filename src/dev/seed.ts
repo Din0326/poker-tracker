@@ -25,8 +25,8 @@ export interface SeedData {
   sessions: Session[]
 }
 
-/** mulberry32：輕量、可重現的虛擬亂數 */
-function mulberry32(seed: number): () => number {
+/** mulberry32：輕量、可重現的虛擬亂數（handSeed.ts 共用） */
+export function mulberry32(seed: number): () => number {
   let a = seed >>> 0
   return () => {
     a = (a + 0x6d2b79f5) >>> 0

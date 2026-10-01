@@ -1,4 +1,6 @@
 // 3.7 Dexie version 1 → 2 遷移（10.3 P5.5 第 1–3 項）。
+// v2（SPEC-v2-hands 3.12）：新版程式為 version 3，v1 資料庫開啟時依序執行 1 → 2 → 3；
+// 本檔的 1 → 2 檢查不變，只把開啟後的版本號改為 3（version 2 → 3 的 HC23 見 hands-db-migration.test.ts）。
 // 先以「舊版程式」（只宣告 version(1) 的 Dexie）建庫寫入資料，再用新版 createDb 開啟，驗證：
 // - 每筆場次補上 backers: []，其餘欄位（含 updatedAt）逐欄與遷移前相同；場地、盲注、設定不變
 // - 遷移後報表各頁籤指標與遷移前完全相同
@@ -186,8 +188,8 @@ describe('3.7 Dexie version 1 → 2 遷移', () => {
     await createV1Database(name)
     const db = track(createDb(name))
     await db.open()
-    expect(DB_VERSION).toBe(2)
-    expect(db.verno).toBe(2)
+    expect(DB_VERSION).toBe(3)
+    expect(db.verno).toBe(3)
     // stores 與 v1 相同（backers 不建索引）
     const tx = db.backendDB().transaction(['sessions', 'venues', 'stakes', 'settings'], 'readonly')
     expect([...tx.objectStore('sessions').indexNames].sort()).toEqual(['stakeId', 'startAt', 'type', 'venueId'])
@@ -288,7 +290,7 @@ describe('3.7 Dexie version 1 → 2 遷移', () => {
     // 之後以正常的新版程式開啟仍可完成遷移
     const db = track(createDb(name))
     await db.open()
-    expect(db.verno).toBe(2)
+    expect(db.verno).toBe(3)
     expect((await db.sessions.toArray()).every((s) => Array.isArray(s.backers))).toBe(true)
   })
 })
@@ -301,14 +303,14 @@ describe('3.7 versionchange', () => {
     await db.open()
     expect(db.isOpen()).toBe(true)
 
-    // 模擬新版頁面以更高版本開啟（Dexie version 3 對應原生版本 30）
+    // 模擬新版頁面以更高版本開啟（v2 起目前為 Dexie version 3 = 原生版本 30；以 version 4 = 原生版本 40 模擬下一版）
     const upgraded = await new Promise<IDBDatabase>((resolve, reject) => {
-      const req = indexedDB.open(name, 30)
+      const req = indexedDB.open(name, 40)
       req.onsuccess = () => resolve(req.result)
       req.onerror = () => reject(req.error)
       req.onblocked = () => reject(new Error('blocked'))
     })
-    expect(upgraded.version).toBe(30)
+    expect(upgraded.version).toBe(40)
     upgraded.close()
     expect(onVersionChange).toHaveBeenCalledTimes(1)
     expect(db.isOpen()).toBe(false)
@@ -323,7 +325,7 @@ describe('3.7 versionchange', () => {
     const db = track(createDb(name))
     await db.open()
     await new Promise<void>((resolve, reject) => {
-      const req = indexedDB.open(name, 30)
+      const req = indexedDB.open(name, 40)
       req.onsuccess = () => {
         req.result.close()
         resolve()

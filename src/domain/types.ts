@@ -1,4 +1,5 @@
 // 第 3 節資料模型的型別定義（純型別，不含任何 UI 或 DB 相依）
+import type { HandDraft, HandSetup } from './hands/types'
 
 /** 場次類型（3.1）；建立後不可變更 */
 export const SESSION_TYPES = ['cash', 'mtt', 'timed_mtt'] as const
@@ -91,6 +92,14 @@ export interface Settings {
   lastBackupAt: string
   recordDraft: RecordDraft
   profitColorScheme: ProfitColorScheme
+  /** v2 手牌（SPEC-v2-hands 3.10）：匯出檔中 Hero 的名稱，未設定時視為 `Hero` */
+  handHeroName: string
+  /** v2 手牌：最後一次配發的 exportSeq，只增不減（7.4） */
+  lastHandSeq: number
+  /** v2 手牌：上次完整模式的牌局設定（5.3） */
+  lastHandSetup: HandSetup
+  /** v2 手牌：新增手牌的草稿（5.7），不進備份 */
+  handDraft: HandDraft
 }
 
 export type SettingKey = keyof Settings
@@ -101,6 +110,10 @@ export const SETTING_KEYS = [
   'lastBackupAt',
   'recordDraft',
   'profitColorScheme',
+  'handHeroName',
+  'lastHandSeq',
+  'lastHandSetup',
+  'handDraft',
 ] as const satisfies readonly SettingKey[]
 
 /** 單場結果判定（4.1）：平不算贏 */

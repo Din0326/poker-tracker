@@ -28,6 +28,12 @@ export interface SessionInput {
 /** 編輯場次的輸入：只帶要變更的欄位；type 不可變更 */
 export type SessionPatch = Partial<SessionInput>
 
+/** 刪除場次的結果（7.5、SPEC-v2-hands 6.5）：原資料，與這次刪除時被轉為獨立的手牌 id（復原時重新掛回） */
+export interface DeletedSession {
+  session: Session
+  detachedHandIds: string[]
+}
+
 /** A1：name 去除前後空白，空字串視為 null */
 export function normalizeName(name: string | null | undefined): string | null {
   const t = name?.trim() ?? ''
@@ -128,22 +134,36 @@ export function createSessionRepo(db: PokerDb, options?: RepoOptions) {
       return db.sessions.toArray()
     },
 
-    /** 實體刪除，回傳被刪除的原資料供復原（7.5） */
-    async delete(id: string): Promise<Session> {
-      return db.transaction('rw', db.sessions, async () => {
+    /**
+     * 實體刪除，回傳被刪除的原資料供復原（7.5）。
+     * SPEC-v2-hands 6.5：同一個 transaction 內把 sessionId 等於該場的手牌改為 null（轉為獨立手牌，不刪除），
+     * 不更新手牌的 updatedAt（系統連帶變更）；回傳被轉為獨立的手牌 id 清單。
+     */
+    async delete(id: string): Promise<DeletedSession> {
+      return db.transaction('rw', db.sessions, db.hands, async () => {
         const existing = await getOrThrow(id)
+        const linked = db.hands.where('sessionId').equals(id)
+        const detachedHandIds = (await linked.primaryKeys()).map(String)
+        await linked.modify({ sessionId: null })
         await db.sessions.delete(id)
-        return existing
+        return { session: existing, detachedHandIds }
       })
     },
 
-    /** 復原：以原始 id、createdAt、updatedAt 原封不動寫回（7.5） */
-    async restore(session: Session): Promise<Session> {
+    /**
+     * 復原：以原始 id、createdAt、updatedAt 原封不動寫回（7.5）。
+     * SPEC-v2-hands 6.5：同一個 transaction 內，把這次刪除時被轉為獨立、且目前 sessionId 仍為 null 的手牌改回原 sessionId
+     * （依 detachedHandIds；不更新手牌的 updatedAt）。
+     */
+    async restore(session: Session, detachedHandIds: readonly string[] = []): Promise<Session> {
       const s = validate(sessionSchema, session)
-      return db.transaction('rw', db.sessions, db.venues, db.stakes, async () => {
+      return db.transaction('rw', db.sessions, db.venues, db.stakes, db.hands, async () => {
         if (await db.sessions.get(s.id)) throw new AlreadyExistsError('session', s.id)
         await assertReferences(s)
         await db.sessions.add(s)
+        for (const hand of await db.hands.bulkGet([...detachedHandIds])) {
+          if (hand && hand.sessionId === null) await db.hands.update(hand.id, { sessionId: s.id })
+        }
         return s
       })
     },

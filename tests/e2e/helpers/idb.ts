@@ -5,7 +5,7 @@ import type { Page } from '@playwright/test'
 
 export const DB_NAME = 'poker-tracker'
 
-export type StoreName = 'sessions' | 'venues' | 'stakes' | 'settings'
+export type StoreName = 'sessions' | 'venues' | 'stakes' | 'settings' | 'hands'
 
 export async function readStore<T = Record<string, unknown>>(page: Page, store: StoreName): Promise<T[]> {
   return page.evaluate(

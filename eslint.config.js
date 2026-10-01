@@ -4,7 +4,8 @@ import reactHooks from 'eslint-plugin-react-hooks'
 import reactRefresh from 'eslint-plugin-react-refresh'
 import tseslint from 'typescript-eslint'
 
-const domainMessage = 'src/domain must stay pure: no React, Dexie or src/db imports (SPEC 2, DoD 10.3 P1).'
+const domainMessage =
+  'src/domain must stay pure: no React, Dexie, fflate or src/db imports (SPEC 2, DoD 10.3 P1; SPEC-v2-hands 2, 12.1).'
 const devImportRestriction = {
   group: ['**/dev', '**/dev/**', 'src/dev', 'src/dev/**', '@/dev', '@/dev/**'],
   message: 'src/dev is development-only and must not be imported by production code (A9).',
@@ -44,7 +45,8 @@ export default tseslint.config(
       ],
     },
   },
-  // DoD 10.3 P1：domain/ 為純函式，不得 import React、Dexie 或 db 層
+  // DoD 10.3 P1：domain/ 為純函式，不得 import React、Dexie 或 db 層；
+  // v2 手牌（SPEC-v2-hands 第 2 節）：src/domain/hands/** 同樣涵蓋在內，另禁止 fflate（zip 解壓放在 lib/）
   // （flat config 同一規則後者覆蓋前者，所以這裡也要重複 dev 的限制）
   {
     files: ['src/domain/**/*.{ts,tsx}'],
@@ -56,9 +58,10 @@ export default tseslint.config(
             { name: 'react', message: domainMessage },
             { name: 'react-dom', message: domainMessage },
             { name: 'dexie', message: domainMessage },
+            { name: 'fflate', message: domainMessage },
           ],
           patterns: [
-            { group: ['react/*', 'react-dom/*', 'dexie/*'], message: domainMessage },
+            { group: ['react/*', 'react-dom/*', 'dexie/*', 'fflate/*'], message: domainMessage },
             { group: ['**/db', '**/db/**', 'src/db', 'src/db/**', '@/db', '@/db/**'], message: domainMessage },
             devImportRestriction,
           ],

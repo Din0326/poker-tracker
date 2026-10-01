@@ -3,6 +3,8 @@
 // 注意：「開始時間不可是未來」屬第 5 節表單規則，刻意不放在這裡（A5）。
 // 錯誤訊息一律用英文代碼（ISSUE），由 UI 依代碼對應 strings.ts 的文字。
 import { z } from 'zod'
+import { handHeroNameSchema, handSetupSchema, lastHandSeqSchema } from './hands/schemas'
+import { ISSUE, charCount, timestampSchema } from './schemaBase'
 import {
   PROFIT_COLOR_SCHEMES,
   SESSION_TYPES,
@@ -37,29 +39,8 @@ export const MAX_MARKUP_PERMILLE = 3000
 /** 加價倍數預設 1.0×（3.8） */
 export const DEFAULT_MARKUP_PERMILLE = 1000
 
-/** 自訂驗證失敗的代碼（非 Zod 內建規則） */
-export const ISSUE = {
-  invalidStartAt: 'invalid_start_at',
-  feeExceedsAmount: 'fee_exceeds_amount',
-  cashBuyInCount: 'cash_requires_exactly_one_buy_in',
-  cashStakeRequired: 'cash_requires_stake',
-  stakeNotAllowed: 'stake_must_be_null',
-  fieldSizeNotAllowed: 'field_size_must_be_null',
-  finishPlaceNotAllowed: 'finish_place_must_be_null',
-  finishPlaceRequiresFieldSize: 'finish_place_requires_field_size',
-  finishPlaceExceedsFieldSize: 'finish_place_exceeds_field_size',
-  notTrimmed: 'not_trimmed',
-  emptyText: 'empty_text',
-  textTooLong: 'text_too_long',
-  bbLessThanSb: 'bb_less_than_sb',
-  duplicateBackerName: 'duplicate_backer_name',
-  backerShareTotalExceeded: 'backer_share_total_exceeded',
-} as const
-
-/** 字數以 Unicode code point 計算，emoji 算 1 字（A2） */
-export function charCount(s: string): number {
-  return Array.from(s).length
-}
+// ISSUE、charCount、timestampSchema 定義在 schemaBase.ts（v2 手牌的 schema 共用，避免循環 import），這裡再匯出
+export { ISSUE, charCount, timestampSchema } from './schemaBase'
 
 const START_AT_RE = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):00$/
 
@@ -76,8 +57,6 @@ export function isValidStartAt(value: string): boolean {
 
 const startAtSchema = z.string().refine(isValidStartAt, { message: ISSUE.invalidStartAt })
 
-/** 含時區偏移的 ISO 8601（例 2026-09-28T21:05:00+08:00） */
-export const timestampSchema = z.iso.datetime({ offset: true })
 
 const amountSchema = z.int().min(1).max(MAX_AMOUNT)
 const cashOutSchema = z.int().min(0).max(MAX_AMOUNT)
@@ -204,4 +183,8 @@ export const settingSchemas: { [K in SettingKey]: z.ZodType<Settings[K]> } = {
   lastBackupAt: timestampSchema,
   recordDraft: z.record(z.string(), z.unknown()),
   profitColorScheme: z.enum(PROFIT_COLOR_SCHEMES),
+  handHeroName: handHeroNameSchema,
+  lastHandSeq: lastHandSeqSchema,
+  lastHandSetup: handSetupSchema,
+  handDraft: z.record(z.string(), z.unknown()),
 }

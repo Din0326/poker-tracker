@@ -3,6 +3,7 @@
 // 注意：類別名稱不可與 Dexie / IndexedDB 內建錯誤名稱相同（例 NotFoundError、DataError、
 // ConstraintError），否則在 Dexie transaction 內丟出時會被轉換成 DexieError。
 import type { z } from 'zod'
+import type { HandVerifyError } from '../domain/hands/summary'
 
 export type RepositoryErrorCode =
   | 'VALIDATION'
@@ -13,6 +14,9 @@ export type RepositoryErrorCode =
   | 'IN_USE'
   | 'REFERENCE_NOT_FOUND'
   | 'TYPE_IMMUTABLE'
+  | 'HAND_INVALID'
+  | 'SESSION_TYPE_MISMATCH'
+  | 'HAND_LOCKED'
 
 export class RepositoryError extends Error {
   readonly code: RepositoryErrorCode
@@ -47,7 +51,7 @@ export class ValidationError extends RepositoryError {
   }
 }
 
-export type EntityKind = 'session' | 'venue' | 'stake'
+export type EntityKind = 'session' | 'venue' | 'stake' | 'hand'
 
 /** 指定 id 的資料不存在 */
 export class RecordNotFoundError extends RepositoryError {
@@ -104,11 +108,11 @@ export class InUseError extends RepositoryError {
   }
 }
 
-/** 場次參照的 venueId 或 stakeId 不存在 */
+/** 場次參照的 venueId 或 stakeId（手牌參照的 sessionId）不存在 */
 export class ReferenceNotFoundError extends RepositoryError {
-  readonly field: 'venueId' | 'stakeId'
+  readonly field: 'venueId' | 'stakeId' | 'sessionId'
   readonly id: string
-  constructor(field: 'venueId' | 'stakeId', id: string) {
+  constructor(field: 'venueId' | 'stakeId' | 'sessionId', id: string) {
     super('REFERENCE_NOT_FOUND', `${field} not found: ${id}`)
     this.field = field
     this.id = id
@@ -119,5 +123,30 @@ export class ReferenceNotFoundError extends RepositoryError {
 export class TypeImmutableError extends RepositoryError {
   constructor(from: string, to: string) {
     super('TYPE_IMMUTABLE', `Session type cannot change from ${from} to ${to}`)
+  }
+}
+
+/** 手牌通過 Zod 後，3.9 結構驗證、kind 或摘要欄位檢查失敗（SPEC-v2-hands 3.1、3.9） */
+export class HandVerificationError extends RepositoryError {
+  readonly error: HandVerifyError
+  constructor(error: HandVerifyError) {
+    super('HAND_INVALID', `Hand verification failed: ${JSON.stringify(error)}`)
+    this.error = error
+  }
+}
+
+/** 手牌關聯的場次類型不相容（SPEC-v2-hands 3.11） */
+export class SessionTypeMismatchError extends RepositoryError {
+  constructor(gameType: string, sessionType: string) {
+    super('SESSION_TYPE_MISMATCH', `Hand gameType ${gameType} cannot link to ${sessionType} session`)
+  }
+}
+
+/** 匯入的手牌只能修改關聯場次、標籤與備註（SPEC-v2-hands 5.8、HQ17） */
+export class HandLockedError extends RepositoryError {
+  readonly field: string
+  constructor(field: string) {
+    super('HAND_LOCKED', `Imported hand field cannot change: ${field}`)
+    this.field = field
   }
 }

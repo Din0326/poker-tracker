@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import type { HandCounts } from '../../db'
 import { formatTimestamp } from '../../domain'
 import { getRunMode, requestPersistentStorage } from '../../lib/platform'
 import { strings } from '../../strings'
@@ -11,11 +12,14 @@ export function SystemInfoSection({
   sessionCount,
   venueCount,
   stakeCount,
+  handCounts,
   lastBackupAt,
 }: {
   sessionCount: number
   venueCount: number
   stakeCount: number
+  /** v2 10.6：手牌數（完整 / 簡易） */
+  handCounts: HandCounts
   lastBackupAt: string | undefined
 }) {
   // 啟動時已申請（main.tsx），這裡取同一個結果；取得前顯示 —
@@ -35,7 +39,11 @@ export function SystemInfoSection({
       label: t.persistentStorage,
       value: persisted === null ? strings.format.empty : persisted ? t.persisted : t.notPersisted,
     },
-    { key: 'data-count', label: t.dataCount, value: t.dataCountValue(sessionCount, venueCount, stakeCount) },
+    {
+      key: 'data-count',
+      label: t.dataCount,
+      value: `${t.dataCountValue(sessionCount, venueCount, stakeCount)} · ${t.handCountValue(handCounts.total, handCounts.complete, handCounts.simple)}`,
+    },
     { key: 'last-backup', label: t.lastBackup, value: lastBackupAt ? formatTimestamp(lastBackupAt) : t.neverBackedUp },
     { key: 'version', label: t.appVersion, value: __APP_VERSION__ },
   ]

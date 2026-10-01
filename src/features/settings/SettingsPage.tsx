@@ -4,6 +4,7 @@ import { Link, useLocation } from 'react-router'
 import { Page } from '../../components/Page'
 import { secondaryButtonClass } from '../../components/controlStyles'
 import type { ProfitColorScheme } from '../../domain'
+import type { HandCounts } from '../../db'
 import { useAppData } from '../../lib/appData'
 import { DEFAULT_PROFIT_SCHEME } from '../../lib/profitScheme'
 import { strings } from '../../strings'
@@ -18,6 +19,7 @@ interface SettingsInfo {
   sessionCount: number
   venueCount: number
   stakeCount: number
+  handCounts: HandCounts
   lastBackupAt: string | undefined
   profitColorScheme: ProfitColorScheme
 }
@@ -39,14 +41,22 @@ export function SettingsPage() {
   const [dataVersion, setDataVersion] = useState(0)
 
   const fetchInfo = useCallback(async (): Promise<SettingsInfo> => {
-    const [sessionCount, venueCount, stakeCount, lastBackupAt, profitColorScheme] = await Promise.all([
+    const [sessionCount, venueCount, stakeCount, handCounts, lastBackupAt, profitColorScheme] = await Promise.all([
       db.sessions.count(),
       db.venues.count(),
       db.stakes.count(),
+      repos.hands.counts(),
       repos.settings.get('lastBackupAt'),
       repos.settings.get('profitColorScheme'),
     ])
-    return { sessionCount, venueCount, stakeCount, lastBackupAt, profitColorScheme: profitColorScheme ?? DEFAULT_PROFIT_SCHEME }
+    return {
+      sessionCount,
+      venueCount,
+      stakeCount,
+      handCounts,
+      lastBackupAt,
+      profitColorScheme: profitColorScheme ?? DEFAULT_PROFIT_SCHEME,
+    }
   }, [db, repos])
   // 讀取失敗時：已有資料則保留，否則顯示錯誤狀態
   const applyInfo = useCallback(
@@ -123,6 +133,7 @@ export function SettingsPage() {
           sessionCount={info.sessionCount}
           venueCount={info.venueCount}
           stakeCount={info.stakeCount}
+          handCounts={info.handCounts}
           lastBackupAt={info.lastBackupAt}
         />
         {/* 11.1：開發模式才出現的 seed 按鈕；正式建置時此分支為 false 而被移除 */}

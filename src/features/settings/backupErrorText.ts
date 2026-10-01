@@ -31,6 +31,36 @@ const issueText: Record<BackupIssueKind, string> = {
   bbLessThanSb: i.bbLessThanSb,
   duplicateBackerName: i.duplicateBackerName,
   backerShareTotalExceeded: i.backerShareTotalExceeded,
+  // v2 手牌
+  invalidPlayedAt: i.invalidPlayedAt,
+  manualSecondsNotZero: i.manualSecondsNotZero,
+  amountUnitMismatch: i.amountUnitMismatch,
+  amountExceedsUnitMax: i.amountExceedsUnitMax,
+  sourceFieldRequired: i.sourceFieldRequired,
+  sourceFieldNotAllowed: i.sourceFieldNotAllowed,
+  invalidCardCount: i.invalidCardCount,
+  invalidBoardCount: i.invalidBoardCount,
+  duplicateCard: i.duplicateCard,
+  duplicateTag: i.duplicateTag,
+  invalidSourceHandId: i.invalidSourceHandId,
+  seatNotFound: i.seatNotFound,
+  seatsNotSorted: i.seatsNotSorted,
+  seatNoExceedsTableSize: i.seatNoExceedsTableSize,
+  tooManySeats: i.tooManySeats,
+  invalidStraddle: i.invalidStraddle,
+  straddleNeedsThreePlayers: i.straddleNeedsThreePlayers,
+  actionToRequired: i.actionToRequired,
+  actionToNotAllowed: i.actionToNotAllowed,
+  tournamentRakeNotZero: i.tournamentRakeNotZero,
+  collectedNotSorted: i.collectedNotSorted,
+  invalidSeatName: i.invalidSeatName,
+  seatNameNotAllowed: i.seatNameNotAllowed,
+  invalidHeroName: i.invalidHeroName,
+  heroNameReserved: i.heroNameReserved,
+  kindMismatch: i.kindMismatch,
+  summaryMismatch: i.summaryMismatch,
+  collectedMustBeEmpty: i.collectedMustBeEmpty,
+  sessionTypeMismatch: i.sessionTypeMismatch,
 }
 
 /**
@@ -88,8 +118,22 @@ export function describeBackupError(error: BackupError): BackupErrorText {
     case 'missingReference':
       return {
         reason,
-        detail: e.detail(location, null, field === 'stakeId' ? i.missingStake(value) : i.missingVenue(value)),
+        detail: e.detail(
+          location,
+          null,
+          field === 'stakeId' ? i.missingStake(value) : field === 'sessionId' ? i.missingSession(value) : i.missingVenue(value),
+        ),
       }
+    // v2 手牌（10.2 例「第 12 筆手牌：行動不合法（第 5 個行動）」）
+    case 'invalidHandDetail': {
+      const text = error.handIssue === undefined ? i.invalid : e.handIssues[error.handIssue]
+      const at = error.actionIndex === undefined ? '' : e.actionAt(error.actionIndex)
+      return { reason, detail: e.detail(location, null, `${text}${at}`) }
+    }
+    case 'duplicateExportSeq':
+      return { reason, detail: e.detail(location, null, i.duplicateExportSeq(value)) }
+    case 'duplicateSourceHandId':
+      return { reason, detail: e.detail(location, null, i.duplicateSourceHandId(value)) }
     default:
       return { reason, detail: e.detail(location, field, issue) }
   }
