@@ -14,6 +14,19 @@ export interface BuyIn {
   fee: number
 }
 
+/**
+ * 出資者（3.8，v1.2），嵌入在 Session 內。
+ * 比例與倍數必須以整數儲存（千分比 / 千分之一），計算時一律以整數運算（4.6）。
+ */
+export interface Backer {
+  /** 去除前後空白後 1–20 字；同一場次內不可重複（不分大小寫） */
+  name: string
+  /** 比例的千分比：1–1000（125 = 12.5%） */
+  sharePermille: number
+  /** 加價倍數的千分之一：1000–3000（1150 = 1.15×） */
+  markupPermille: number
+}
+
 /** 場次（3.1）；該類型不使用的欄位必須為 null */
 export interface Session {
   id: string
@@ -35,6 +48,8 @@ export interface Session {
   fieldSize: number | null
   /** 僅 mtt 使用 */
   finishPlace: number | null
+  /** 出資者（3.8）：0–10 筆；沒有賣股時為空陣列，不得為 null 或省略 */
+  backers: Backer[]
   /** ISO 8601 含時區偏移 */
   createdAt: string
   /** ISO 8601 含時區偏移 */

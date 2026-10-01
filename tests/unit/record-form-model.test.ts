@@ -132,7 +132,16 @@ describe('5.5 resetAfterSave', () => {
 describe('toSessionInput / computePreview（使用 domain 計算）', () => {
   it('C1：限時 MTT 3,400（400）+ 3,200（200），到手 9,000', () => {
     const v = filled({ type: 'timed_mtt' })
-    expect(computePreview(v)).toEqual({ buyInTotal: 6600, entries: 2, feeTotal: 600, profit: 2400 })
+    // v1.2：預覽另含出資者列數、賣出比例與你的盈利；沒有出資者列時你的盈利 = 盈利
+    expect(computePreview(v)).toEqual({
+      buyInTotal: 6600,
+      entries: 2,
+      feeTotal: 600,
+      profit: 2400,
+      backerRows: 0,
+      soldPermille: 0,
+      myProfit: 2400,
+    })
     expect(toSessionInput(v)).toEqual({
       type: 'timed_mtt',
       startAt: '2026-09-28T20:00',
@@ -148,13 +157,14 @@ describe('toSessionInput / computePreview（使用 domain 計算）', () => {
       note: 'n',
       fieldSize: null,
       finishPlace: null,
+      backers: [],
     })
   })
 
   it('買入或到手無效時不顯示盈利；服務費留空視為 0', () => {
     expect(computePreview(filled({ cashOut: '' })).profit).toBeNull()
     const p = computePreview(filled({ buyIns: [{ amount: '', fee: '' }] }))
-    expect(p).toEqual({ buyInTotal: null, entries: 1, feeTotal: 0, profit: null })
+    expect(p).toEqual({ buyInTotal: null, entries: 1, feeTotal: 0, profit: null, backerRows: 0, soldPermille: 0, myProfit: null })
   })
 
   it('sessionToValues 與 toSessionInput 互為反向（服務費 0 顯示為空白）', () => {
@@ -195,7 +205,9 @@ describe('5.6 草稿', () => {
 
   it('版本不符、格式錯誤時丟棄；已封存的盲注、場地改為未選', () => {
     const draft = toDraft(filled(), false)
-    expect(parseDraft({ ...draft, version: 2 }, stakes, venues)).toBeNull()
+    // v1.2 起草稿版本為 2：未知的較新版本丟棄；版本 1 但含出資者欄位（不符 v1 格式）也丟棄
+    expect(parseDraft({ ...draft, version: 3 }, stakes, venues)).toBeNull()
+    expect(parseDraft({ ...draft, version: 1 }, stakes, venues)).toBeNull()
     expect(parseDraft({ ...draft, values: { ...draft.values, cashOut: '1,000' } }, stakes, venues)).toBeNull()
     expect(parseDraft('x', stakes, venues)).toBeNull()
     const cash = toDraft(

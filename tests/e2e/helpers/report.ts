@@ -1,5 +1,5 @@
 import { expect, type Page } from '@playwright/test'
-import type { Session } from '../../../src/domain/types'
+import type { Backer, Session } from '../../../src/domain/types'
 import { nav, uuid } from './sessions'
 
 // P4 報表測試用的操作捷徑與資料產生
@@ -47,6 +47,7 @@ const base = {
   note: null,
   fieldSize: null,
   finishPlace: null,
+  backers: [] as Backer[],
 } as const
 
 /** 產生 n 筆 MTT 場次（曲線點數測試用），每天一場、盈利交錯正負 */

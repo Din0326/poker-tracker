@@ -1,4 +1,5 @@
 // 報表（第 6 節）的顯示模型：純函式，不含 React 與 DB，方便單元測試。
+// 口徑（v1.2）：盈利類數字一律用你的份額，總服務費、服務費比例、ABI、ITM% 用全額（由 domain 彙總函式負責）。
 // 指標計算一律呼叫 src/domain 的彙總函式，格式化一律呼叫 src/domain/format.ts；這裡只負責
 // 「哪個頁籤顯示哪些指標、順序為何」（6.2 表格）、正負上色判斷與曲線資料的組合。
 import {
@@ -15,9 +16,11 @@ import {
   formatPlacePercentile,
   formatSignedMoney,
   formatSignedPercent,
+  hasBackers,
   itm,
-  profit,
+  myProfit,
   roundHalfAwayFromZero,
+  soldPermille,
   sortChronological,
   summarize,
   tournamentMetrics,
@@ -207,29 +210,37 @@ export interface CurvePoint {
   /** 顯示用日期 `2026/09/27` */
   date: string
   type: SessionType
-  /** 該場盈利 */
+  /** 該場盈利（你的盈利） */
   profit: number
+  /** 該場有出資者時的賣出比例合計（千分比）；沒有出資者為 null（6.3 tooltip 加註「（賣 30%）」） */
+  soldPermille: number | null
   /** 到這一場為止的累積盈利（從 0 開始累積） */
   cumulative: number
 }
 
 /**
- * 6.3：依 startAt 由舊到新（同時間依 createdAt）排序後累積盈利。
+ * 6.3：依 startAt 由舊到新（同時間依 createdAt）排序後累積盈利（累積你的盈利，4.6）。
  * sessions 須已依頁籤與期間篩選，所以期間篩選時從 0 開始累積。
  */
 export function buildCurve(sessions: readonly Session[]): CurvePoint[] {
   let cumulative = 0
   return sortChronological(sessions).map((s, i) => {
-    const p = profit(s)
+    const p = myProfit(s)
     cumulative += p
     return {
       index: i + 1,
       date: strings.report.curve.date(s.startAt.slice(0, 4), s.startAt.slice(5, 7), s.startAt.slice(8, 10)),
       type: s.type,
       profit: p,
+      soldPermille: hasBackers(s) ? soldPermille(s.backers) : null,
       cumulative,
     }
   })
+}
+
+/** 6 節：目前頁籤與期間的場次中有任何一場有出資者時，指標卡下方顯示口徑小字 */
+export function hasStakedSessions(sessions: readonly Pick<Session, 'backers'>[]): boolean {
+  return sessions.some(hasBackers)
 }
 
 /** 少於 2 筆不畫曲線（6.3） */

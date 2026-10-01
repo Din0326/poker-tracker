@@ -16,11 +16,13 @@ import {
   formatFieldSizeOnly,
   formatFinishPlace,
   formatHourly,
+  formatMarkup,
   formatMoney,
+  formatPermille,
   formatSignedMoney,
   formatTimestamp,
-  profit,
   stakeLabel,
+  stakingBreakdown,
   summarize,
   type Session,
   type Stake,
@@ -52,10 +54,22 @@ function Row({ label, children, testId }: { label: string; children: ReactNode; 
   )
 }
 
-function Section({ title, children }: { title: string; children: ReactNode }) {
+/** 區塊內的整列文字（合計列）或小標題（全額結果、你的份額） */
+function FullRow({ children, testId, heading }: { children: ReactNode; testId?: string; heading?: boolean }) {
+  return (
+    <div
+      data-testid={testId}
+      className={`num px-4 py-3 break-words ${heading ? 'text-sm font-semibold text-(--color-text-muted)' : 'text-sm'}`}
+    >
+      {children}
+    </div>
+  )
+}
+
+function Section({ title, children, testId }: { title: string; children: ReactNode; testId?: string }) {
   const id = `detail-${title}`
   return (
-    <section aria-labelledby={id} className="mt-4">
+    <section aria-labelledby={id} className="mt-4" data-testid={testId}>
       <h2 id={id} className="px-1 pb-2 text-sm text-(--color-text-muted)">
         {title}
       </h2>
@@ -143,7 +157,11 @@ export function SessionDetailPage() {
   const lookup = buildLookup(venues, stakes)
   const venue = session.venueId === null ? undefined : lookup.venues.get(session.venueId)
   const stake = session.stakeId === null ? undefined : lookup.stakes.get(session.stakeId)
-  const p = profit(session)
+  // 數字一律來自 4.6 的純函式（與列表、報表、CSV 一致）
+  const st = stakingBreakdown(session)
+  const staked = st.lines.length > 0
+  const p = st.myProfit
+  const soldText = formatPermille(st.soldPermille)
   const title = sessionTitle(session, lookup)
   const TypeIcon = sessionTypeIcons[session.type]
   const hourly = summarize([session]).hourly
@@ -208,11 +226,21 @@ export function SessionDetailPage() {
 
   return page(
     <>
-      {/* 頂部：盈利（大字）、類型、標題 */}
+      {/* 頂部：盈利（大字，你的盈利）、類型、標題；有出資者時大字標籤為「你的盈利」，下方小字全額與賣出比例 */}
       <div className="mt-2 rounded-(--radius-card) border border-(--color-border) bg-(--color-surface) px-4 py-5 text-center">
+        {staked && (
+          <p data-testid="detail-profit-label" className="mb-1 text-sm text-(--color-text-muted)">
+            {t.myProfitLabel}
+          </p>
+        )}
         <p data-testid="detail-profit" className={`num text-4xl font-bold ${profitColorClass(p)}`}>
           {formatSignedMoney(p)}
         </p>
+        {staked && (
+          <p data-testid="detail-full-summary" className="num mt-1 text-sm text-(--color-text-muted)">
+            {t.fullSummary(formatSignedMoney(st.fullProfit), soldText)}
+          </p>
+        )}
         <p className="mt-2 flex items-center justify-center gap-1.5 text-sm text-(--color-text-muted)">
           <TypeIcon aria-hidden="true" size={16} />
           <span data-testid="detail-type">{strings.sessionTypes[session.type]}</span>
@@ -259,12 +287,52 @@ export function SessionDetailPage() {
         </Row>
       </Section>
 
+      {/* 7.2 賣股份（只在有出資者時顯示） */}
+      {staked && (
+        <Section title={t.stakingSection} testId="detail-staking">
+          {st.lines.map((line, i) => (
+            <Row
+              key={i}
+              label={t.backerLabel(line.backer.name, formatPermille(line.backer.sharePermille), formatMarkup(line.backer.markupPermille))}
+              testId="detail-backer"
+            >
+              {t.backerAmounts(formatMoney(line.pay), formatMoney(line.payout))}
+            </Row>
+          ))}
+          <FullRow testId="detail-staking-total">
+            {t.stakingTotal(soldText, formatMoney(st.payTotal), formatMoney(st.payoutTotal))}
+          </FullRow>
+          <FullRow heading>{t.fullResult}</FullRow>
+          <Row label={t.buyInTotal} testId="detail-staking-buyInTotal">
+            {formatMoney(st.buyInTotal)}
+          </Row>
+          <Row label={t.cashOut} testId="detail-staking-cashOut">
+            {formatMoney(st.cashOut)}
+          </Row>
+          <Row label={t.fullProfit} testId="detail-staking-fullProfit">
+            <span className={profitColorClass(st.fullProfit)}>{formatSignedMoney(st.fullProfit)}</span>
+          </Row>
+          <FullRow heading testId="detail-my-share">
+            {t.myShare(formatPermille(st.myPermille))}
+          </FullRow>
+          <Row label={t.myCost} testId="detail-myCost">
+            {formatMoney(st.myCost)}
+          </Row>
+          <Row label={t.myCashOut} testId="detail-myCashOut">
+            {formatMoney(st.myCashOut)}
+          </Row>
+          <Row label={t.myProfit} testId="detail-myProfit">
+            <span className={profitColorClass(st.myProfit)}>{formatSignedMoney(st.myProfit)}</span>
+          </Row>
+        </Section>
+      )}
+
       <Section title={t.derivedSection}>
-        <Row label={t.hourly} testId="detail-hourly">
+        <Row label={staked ? t.myHourly : t.hourly} testId="detail-hourly">
           <span className={profitColorClass(hourly)}>{formatHourly(hourly)}</span>
         </Row>
         {session.type === 'cash' && (
-          <Row label={t.bbProfit} testId="detail-bbProfit">
+          <Row label={staked ? t.myBbProfit : t.bbProfit} testId="detail-bbProfit">
             {stake ? (
               <span className={profitColorClass(p)}>{formatBbProfit(bbProfit(session, stake))}</span>
             ) : (
@@ -321,7 +389,14 @@ export function SessionDetailPage() {
         <div className="rounded-(--radius-card) border border-(--color-border) bg-(--color-surface-raised) px-4 py-3">
           <p className="num text-sm text-(--color-text-muted)">{startAtText(session)}</p>
           <p className="mt-1 font-semibold break-words">{title}</p>
-          <p className={`num mt-1 font-semibold ${profitColorClass(p)}`}>{formatSignedMoney(p)}</p>
+          <p data-testid="delete-sheet-profit" className="num mt-1">
+            <span className={`font-semibold ${profitColorClass(p)}`}>{formatSignedMoney(p)}</span>
+            {staked && (
+              <span className="ml-2 text-sm text-(--color-text-muted)">
+                {strings.sessions.deleteSheet.soldNote(soldText)}
+              </span>
+            )}
+          </p>
         </div>
         <div className="mt-4 grid grid-cols-2 gap-3">
           <button type="button" onClick={() => setSheet(null)} className={secondaryButtonClass}>

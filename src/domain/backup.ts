@@ -6,8 +6,11 @@ import { ISSUE, sessionSchema, settingSchemas, stakeSchema, timestampSchema, ven
 import { SETTING_KEYS, type Session, type SettingKey, type Settings, type Stake, type Venue } from './types'
 
 export const BACKUP_APP = 'poker-tracker'
-/** 目前的備份檔格式版本；v2 起需在 BACKUP_MIGRATIONS 加入 v(n-1) → v(n) 的遷移 */
-export const CURRENT_SCHEMA_VERSION = 1
+/**
+ * 目前的備份檔格式版本（8.4）：v1.0–v1.1 為 1；v1.2（賣股份）起為 2。
+ * 每次升版都需在 BACKUP_MIGRATIONS 加入 v(n-1) → v(n) 的遷移
+ */
+export const CURRENT_SCHEMA_VERSION = 2
 
 /** 備份檔不包含的設定（8.4）：草稿與上次備份時間 */
 export const NON_EXPORTED_SETTING_KEYS = ['recordDraft', 'lastBackupAt'] as const satisfies readonly SettingKey[]
@@ -89,8 +92,19 @@ export type BackupData = Record<string, unknown> & { schemaVersion: number }
 /** key 為來源版本 n，函式把 v(n) 的資料轉為 v(n+1)（schemaVersion 由 migrateBackup 更新） */
 export type BackupMigrations = Readonly<Record<number, (data: BackupData) => Record<string, unknown>>>
 
-/** 目前只有 v1，沒有任何遷移步驟 */
-export const BACKUP_MIGRATIONS: BackupMigrations = {}
+/**
+ * 8.5 定義的遷移：
+ * - 1 → 2：每筆 session 設定 `backers: []`（v1 備份檔沒有此欄位；即使檔案中意外出現也一律覆寫為 []），
+ *   其他欄位不變。sessions 不是陣列、或某筆不是物件時原樣保留，交給後續驗證回報錯誤。
+ */
+export const BACKUP_MIGRATIONS: BackupMigrations = {
+  1: (data) => ({
+    ...data,
+    sessions: Array.isArray(data.sessions)
+      ? data.sessions.map((s: unknown) => (isPlainObject(s) ? { ...s, backers: [] } : s))
+      : data.sessions,
+  }),
+}
 
 /** 依版本逐步升級到 target；缺少某一步的遷移時丟出錯誤（程式錯誤，不應發生） */
 export function migrateBackup(

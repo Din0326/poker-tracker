@@ -19,7 +19,7 @@ import {
 } from '../../src/domain/format'
 import { filterByPeriod, resolvePeriod } from '../../src/domain/period'
 import { buyInSchema, sessionSchema } from '../../src/domain/schemas'
-import { buyInTotal, entryCount, feeTotal, profit, sessionResult } from '../../src/domain/session'
+import { buyInTotal, entryCount, feeTotal, fullProfit, myProfit, sessionResult } from '../../src/domain/session'
 import type { Stake } from '../../src/domain/types'
 import { makeSession, withResult } from './helpers/fixtures'
 
@@ -38,21 +38,24 @@ describe('10.2 計算公式必測案例', () => {
     expect(buyInTotal(s)).toBe(6600)
     expect(feeTotal(s)).toBe(600)
     expect(entryCount(s)).toBe(2)
-    expect(profit(s)).toBe(2400)
-    expect(formatSignedMoney(profit(s))).toBe('+$2,400')
+    expect(myProfit(s)).toBe(2400)
+    expect(fullProfit(s)).toBe(2400)
+    expect(formatSignedMoney(myProfit(s))).toBe('+$2,400')
     expect(sessionSchema.safeParse(s).success).toBe(true)
   })
 
   it('C2 現金桌買入 10,000 到手 0：盈利 −10,000，判定為輸', () => {
     const s = withResult('cash', 10000, 0)
-    expect(profit(s)).toBe(-10000)
+    expect(myProfit(s)).toBe(-10000)
+    expect(fullProfit(s)).toBe(-10000)
     expect(sessionResult(s)).toBe('loss')
-    expect(formatSignedMoney(profit(s))).toBe('−$10,000')
+    expect(formatSignedMoney(myProfit(s))).toBe('−$10,000')
   })
 
   it('C3 買入 5,000 到手 5,000：盈利 0，判定為平，不計入贏的場次', () => {
     const s = withResult('cash', 5000, 5000)
-    expect(profit(s)).toBe(0)
+    expect(myProfit(s)).toBe(0)
+    expect(fullProfit(s)).toBe(0)
     expect(sessionResult(s)).toBe('even')
     const m = summarize([s])
     expect(m.winCount).toBe(0)

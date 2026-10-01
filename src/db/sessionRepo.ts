@@ -1,6 +1,6 @@
 // 場次 repository（3.1、3.6、5.7、7.5）
 import { sessionSchema } from '../domain/schemas'
-import type { BuyIn, Session, SessionType } from '../domain/types'
+import type { Backer, BuyIn, Session, SessionType } from '../domain/types'
 import { resolveOptions, toIsoWithOffset, validate, type RepoOptions } from './common'
 import { AlreadyExistsError, RecordNotFoundError, ReferenceNotFoundError, TypeImmutableError } from './errors'
 import type { PokerDb } from './schema'
@@ -21,6 +21,8 @@ export interface SessionInput {
   note?: string | null
   fieldSize?: number | null
   finishPlace?: number | null
+  /** 出資者（3.8）；省略視為沒有賣股（[]）。名稱儲存去除前後空白後的值 */
+  backers?: Backer[]
 }
 
 /** 編輯場次的輸入：只帶要變更的欄位；type 不可變更 */
@@ -53,6 +55,11 @@ function normalize(input: SessionInput): Omit<Session, 'id' | 'createdAt' | 'upd
     note: normalizeNote(input.note),
     fieldSize: isMtt ? (input.fieldSize ?? null) : null,
     finishPlace: isMtt ? (input.finishPlace ?? null) : null,
+    backers: (input.backers ?? []).map((b) => ({
+      name: b.name.trim(),
+      sharePermille: b.sharePermille,
+      markupPermille: b.markupPermille,
+    })),
   }
 }
 

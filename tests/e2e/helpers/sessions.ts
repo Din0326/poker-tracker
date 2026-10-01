@@ -1,5 +1,5 @@
 import { expect, type Page } from '@playwright/test'
-import type { Session, Stake, Venue } from '../../../src/domain/types'
+import type { Backer, Session, Stake, Venue } from '../../../src/domain/types'
 import { putRecords } from './idb'
 import { openRecordPage } from './record'
 
@@ -29,6 +29,7 @@ const base = {
   note: null,
   fieldSize: null,
   finishPlace: null,
+  backers: [] as Backer[],
 } as const
 
 function ts(value: string): { createdAt: string; updatedAt: string } {

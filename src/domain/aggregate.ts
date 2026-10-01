@@ -1,6 +1,8 @@
 // 4.2 彙總指標與 4.3 類型專屬指標（純函式）
 // 規則：分母為 0 時回傳 null（顯示為 —）；內部計算不得提前捨入，捨入只在 format.ts 顯示時進行。
-import { bbProfit, buyInTotal, entryCount, feeTotal, profit, sessionResult } from './session'
+// 口徑（v1.2）：盈利、贏率、平均每場盈利、總投入、總到手、ROI、時薪、bb/hr 用份額（4.6 的你的成本 /
+// 你的到手 / 你的盈利）；總服務費、服務費比例、ABI、ITM% 用全額。沒有出資者時兩者相等，結果與 v1.1 相同。
+import { bbProfit, buyInTotal, entryCount, feeTotal, myCashOut, myCost, myProfit, sessionResult } from './session'
 import type { Session, Stake } from './types'
 
 function ratio(numerator: number, denominator: number): number | null {
@@ -9,31 +11,33 @@ function ratio(numerator: number, denominator: number): number | null {
 
 /** 4.2 彙總指標（適用任何場次組合） */
 export interface SummaryMetrics {
-  /** Σ 盈利 */
+  /** 盈利（份額）：Σ 你的盈利 */
   profit: number
   /** 場次數 */
   count: number
-  /** 贏的場次數（平不算贏） */
+  /** 贏的場次數（以你的盈利判定，平不算贏） */
   winCount: number
   /** 贏的場次數 ÷ 場次數 */
   winRate: number | null
-  /** Σ 盈利 ÷ 場次數 */
+  /** Σ 你的盈利 ÷ 場次數 */
   avgProfit: number | null
-  /** Σ 買入總額 */
+  /** 總投入（份額）：Σ 你的成本（可能為負） */
   totalBuyIn: number
-  /** Σ cashOut */
+  /** 總到手（份額）：Σ 你的到手（可能為負） */
   totalCashOut: number
-  /** Σ 盈利 ÷ Σ 買入總額 */
+  /** Σ 你的盈利 ÷ Σ 你的成本；Σ 你的成本 ≤ 0 時為 null（4.2、Q18） */
   roi: number | null
   /** Σ durationMin */
   totalMinutes: number
   /** Σ durationMin ÷ 60 */
   totalHours: number
-  /** Σ 盈利 ÷ 總時數 */
+  /** Σ 你的盈利 ÷ 總時數 */
   hourly: number | null
-  /** Σ 服務費總額 */
+  /** 總服務費（全額）：Σ 服務費總額 */
   totalFee: number
-  /** Σ 服務費總額 ÷ Σ 買入總額 */
+  /** 全額買入總額：Σ 買入總額（服務費比例的分母） */
+  fullBuyInTotal: number
+  /** 服務費比例（全額）：Σ 服務費總額 ÷ Σ 買入總額（全額） */
   feeRate: number | null
 }
 
@@ -42,13 +46,15 @@ export function summarize(sessions: readonly Session[]): SummaryMetrics {
   let winCount = 0
   let totalBuyIn = 0
   let totalCashOut = 0
+  let fullBuyInTotal = 0
   let totalMinutes = 0
   let totalFee = 0
   for (const s of sessions) {
-    totalProfit += profit(s)
+    totalProfit += myProfit(s)
     if (sessionResult(s) === 'win') winCount++
-    totalBuyIn += buyInTotal(s)
-    totalCashOut += s.cashOut
+    totalBuyIn += myCost(s)
+    totalCashOut += myCashOut(s)
+    fullBuyInTotal += buyInTotal(s)
     totalMinutes += s.durationMin
     totalFee += feeTotal(s)
   }
@@ -62,12 +68,14 @@ export function summarize(sessions: readonly Session[]): SummaryMetrics {
     avgProfit: ratio(totalProfit, count),
     totalBuyIn,
     totalCashOut,
-    roi: ratio(totalProfit, totalBuyIn),
+    // 你的成本合計 ≤ 0（全部賣出）時比率沒有意義，顯示 —
+    roi: totalBuyIn > 0 ? totalProfit / totalBuyIn : null,
     totalMinutes,
     totalHours,
     hourly: ratio(totalProfit, totalHours),
     totalFee,
-    feeRate: ratio(totalFee, totalBuyIn),
+    fullBuyInTotal,
+    feeRate: ratio(totalFee, fullBuyInTotal),
   }
 }
 
@@ -84,7 +92,7 @@ export class MissingStakeError extends Error {
 export type StakeLookup = ReadonlyMap<string, Pick<Stake, 'bb'>>
 
 /**
- * 4.3 bb/hr = Σ（盈利ᵢ ÷ bbᵢ）÷ 總時數。
+ * 4.3 bb/hr = Σ（你的盈利ᵢ ÷ bbᵢ）÷ 總時數（份額）。
  * 只計入 type 為 cash 的場次（總時數也只算這些場次）；各場依自己的 bb 換算後再加總。
  * stakes 由呼叫端傳入（domain 不碰 DB）。
  */
@@ -101,7 +109,7 @@ export function bbPerHour(sessions: readonly Session[], stakes: StakeLookup): nu
   return ratio(bbSum, minutes / 60)
 }
 
-/** 4.3 ITM%：到手金額 > 0 的場次數 ÷ 場次數；只計入 type 為 mtt 的場次 */
+/** 4.3 ITM%（全額）：到手金額（cashOut）> 0 的場次數 ÷ 場次數；只計入 type 為 mtt 的場次 */
 export interface ItmMetrics {
   itmCount: number
   count: number
@@ -138,7 +146,7 @@ export function averagePlacePercentile(sessions: readonly Session[]): PlacePerce
 export interface TournamentMetrics {
   /** Σ 進場次數 ÷ 場次數 */
   avgEntries: number | null
-  /** 平均單次買入（ABI）= Σ 買入總額 ÷ Σ 進場次數 */
+  /** 平均單次買入（ABI，全額）= Σ 買入總額 ÷ Σ 進場次數 */
   abi: number | null
 }
 

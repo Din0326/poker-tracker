@@ -128,6 +128,8 @@ export function generateSeedData(options: SeedOptions = {}): SeedData {
       note: chance(0.1) ? `${SEED_MARKER} #${i + 1}` : null,
       fieldSize,
       finishPlace,
+      // 每 10 場有 1 場賣股份（v1.2）；以序號決定、不消耗亂數，其他欄位與舊版產生結果相同
+      backers: i % 10 === 0 ? [{ name: `Seed Backer ${(i / 10) % 5 + 1}`, sharePermille: 300, markupPermille: 1100 }] : [],
       createdAt,
       updatedAt: createdAt,
     })

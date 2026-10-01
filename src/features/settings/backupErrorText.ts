@@ -29,6 +29,24 @@ const issueText: Record<BackupIssueKind, string> = {
   emptyText: i.emptyText,
   textTooLong: i.textTooLong,
   bbLessThanSb: i.bbLessThanSb,
+  duplicateBackerName: i.duplicateBackerName,
+  backerShareTotalExceeded: i.backerShareTotalExceeded,
+}
+
+/**
+ * 欄位路徑的顯示文字。出資者欄位改用中文位置（8.5 例「出資者第 2 位：比例格式錯誤」），
+ * 例 ['backers', 1, 'sharePermille'] → 「出資者第 2 位 比例」；其餘維持 `buyIns[0].fee` 格式。
+ */
+export function describeFieldPath(path: readonly (string | number)[]): string | null {
+  if (path.length === 0) return null
+  if (path[0] === 'backers') {
+    const index = path[1]
+    if (typeof index !== 'number') return e.backersField
+    const key = path[2]
+    const label = typeof key === 'string' && key in e.backerFields ? e.backerFields[key as keyof typeof e.backerFields] : null
+    return e.backerAt(index + 1, label ?? (key === undefined ? null : String(key)))
+  }
+  return formatIssuePath(path)
 }
 
 export interface BackupErrorText {
@@ -40,7 +58,7 @@ export interface BackupErrorText {
 export function describeBackupError(error: BackupError): BackupErrorText {
   const reason = e.reasons[error.code]
   const issue = error.issue === undefined ? i.invalid : issueText[error.issue]
-  const field = error.path && error.path.length > 0 ? formatIssuePath(error.path) : null
+  const field = error.path ? describeFieldPath(error.path) : null
 
   switch (error.code) {
     case 'invalidJson':

@@ -154,3 +154,45 @@ export function formatTimestamp(iso: string): string {
   const d = dayjs(iso)
   return d.isValid() ? d.format('YYYY/MM/DD HH:mm') : f.empty
 }
+
+/** 千分比整數拆成「整數.小數 1 位」（例 125 → ['12', '5']），以整數運算避免浮點誤差 */
+function permilleParts(permille: number): { int: string; frac: string } {
+  const abs = Math.abs(permille)
+  const sign = permille < 0 ? f.minus : ''
+  return { int: `${sign}${Math.floor(abs / 10)}`, frac: String(abs % 10) }
+}
+
+/**
+ * 4.4 比例顯示（v1.2）：sharePermille ÷ 10 加 `%`；整數時不顯示小數（300 → `30%`），
+ * 否則顯示 1 位（125 → `12.5%`）。合計比例與「你佔」比例同樣規則。
+ */
+export function formatPermille(permille: number): string {
+  const p = permilleParts(permille)
+  return `${p.frac === '0' ? p.int : `${p.int}.${p.frac}`}${f.percent}`
+}
+
+/** 8.6 CSV 賣出比例：固定 1 位小數、不含 `%`（300 → `30.0`、0 → `0.0`）；負數不會出現 */
+export function formatCsvPermille(permille: number): string {
+  const abs = Math.abs(permille)
+  return `${permille < 0 ? '-' : ''}${Math.floor(abs / 10)}.${abs % 10}`
+}
+
+/**
+ * 4.4 加價倍數顯示（v1.2）：`×` 前綴，markupPermille ÷ 1000，去除尾端 0 但至少保留 1 位小數
+ * （1000 → `×1.0`、1200 → `×1.2`、1150 → `×1.15`、1125 → `×1.125`）
+ */
+export function formatMarkup(markupPermille: number): string {
+  return `${f.markupPrefix}${markupNumber(markupPermille)}`
+}
+
+/** 加價倍數的數字部分（不含 `×`），規則同 formatMarkup；表單預填與 CSV 共用 */
+export function markupNumber(markupPermille: number): string {
+  const int = Math.floor(markupPermille / 1000)
+  const frac = String(markupPermille % 1000).padStart(3, '0').replace(/0+$/, '')
+  return `${int}.${frac === '' ? '0' : frac}`
+}
+
+/** 比例的數字部分（不含 `%`），規則同 formatPermille；表單預填用（125 → `12.5`、300 → `30`） */
+export function permilleNumber(permille: number): string {
+  return formatPermille(permille).slice(0, -f.percent.length)
+}

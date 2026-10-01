@@ -7,7 +7,7 @@ import {
   summarize,
   tournamentMetrics,
 } from '../../src/domain/aggregate'
-import { bbProfit, buyInTotal, entryCount, feeTotal, profit, sessionResult } from '../../src/domain/session'
+import { bbProfit, buyInTotal, entryCount, feeTotal, fullProfit, myProfit, sessionResult } from '../../src/domain/session'
 import type { Stake } from '../../src/domain/types'
 import { makeSession, withResult } from './helpers/fixtures'
 
@@ -19,7 +19,8 @@ describe('4.1 單一場次', () => {
     expect(buyInTotal(s)).toBe(1000)
     expect(feeTotal(s)).toBe(300)
     expect(entryCount(s)).toBe(1)
-    expect(profit(s)).toBe(500)
+    expect(fullProfit(s)).toBe(500)
+    expect(myProfit(s)).toBe(500)
     expect(sessionResult(s)).toBe('win')
   })
 

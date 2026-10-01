@@ -51,6 +51,8 @@ describe('sessionToCopyValues', () => {
       venueId: 'v-active',
       name: '週日賽',
       note: '',
+      // v1.2：沒有出資者的來源場次，出資者列為 0 列（有出資者的情況見 staking-form.test.ts）
+      backers: [],
     })
   })
 

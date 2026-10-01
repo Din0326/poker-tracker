@@ -2,12 +2,12 @@
 // - 全部場次，一場一列，依 startAt 由舊到新（同時間依 createdAt）
 // - UTF-8 加 BOM、CRLF 換行；逗號、雙引號、換行依 RFC 4180 以雙引號包起，雙引號重複一次
 // - 數字無千分位、無貨幣符號，負數用 ASCII 減號；空值為空字串
-// - 公式注入防護：文字欄位（類型、場地、盲注、名稱、備註）以 = + - @ 開頭時前面加單引號；
+// - 公式注入防護：文字欄位（類型、場地、盲注、名稱、出資者、備註）以 = + - @ 開頭時前面加單引號；
 //   tab、CR 開頭同樣會被 Excel 視為公式前綴（OWASP CSV Injection），一併處理（規格未載明，保守做法）
 import dayjs from 'dayjs'
 import { strings } from '../strings'
-import { stakeLabel } from './format'
-import { buyInTotal, entryCount, feeTotal, profit } from './session'
+import { formatCsvPermille, formatMarkup, formatPermille, stakeLabel } from './format'
+import { buyInTotal, entryCount, feeTotal, stakingBreakdown } from './session'
 import { sortChronological } from './sort'
 import type { Session, Stake, Venue } from './types'
 
@@ -50,9 +50,20 @@ function renderCell(cell: Cell): string {
   }
 }
 
+/**
+ * 8.6 出資者欄：依儲存順序 `名稱 比例%×倍數`，以全形分號連接（例 `A 10%×1.2；B 20%×1.0`）；
+ * 比例與倍數格式同 4.4；沒有賣股為空字串
+ */
+export function backersCsvText(backers: Session['backers']): string {
+  return backers
+    .map((b) => strings.csv.backerItem(b.name, formatPermille(b.sharePermille), formatMarkup(b.markupPermille)))
+    .join(strings.csv.backerSeparator)
+}
+
 function sessionRow(s: Session, venues: ReadonlyMap<string, Venue>, stakes: ReadonlyMap<string, Stake>): Cell[] {
   const venue = s.venueId === null ? undefined : venues.get(s.venueId)
   const stake = s.stakeId === null ? undefined : stakes.get(s.stakeId)
+  const st = stakingBreakdown(s)
   return [
     // 日期 YYYY-MM-DD 與開始時 0 到 23：系統產生的固定格式，不需注入防護
     raw(s.startAt.slice(0, 10)),
@@ -65,7 +76,14 @@ function sessionRow(s: Session, venues: ReadonlyMap<string, Venue>, stakes: Read
     num(buyInTotal(s)),
     num(feeTotal(s)),
     num(s.cashOut),
-    num(profit(s)),
+    // 全額盈利 = 到手金額 − 買入總額（原「盈利」欄，值不變）
+    num(st.fullProfit),
+    // v1.2 新增 5 欄：賣出比例（固定 1 位小數、不含 %）、出資者付款總額、分走獎金總額、你的盈利、出資者
+    raw(formatCsvPermille(st.soldPermille)),
+    num(st.payTotal),
+    num(st.payoutTotal),
+    num(st.myProfit),
+    text(backersCsvText(s.backers)),
     num(s.durationMin),
     num(s.fieldSize),
     num(s.finishPlace),

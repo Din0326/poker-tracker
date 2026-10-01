@@ -38,7 +38,7 @@ const uuid = (n: number) => `00000000-0000-4000-8000-${n.toString(16).padStart(1
 function otherBackup(): BackupFile {
   return {
     app: 'poker-tracker',
-    schemaVersion: 1,
+    schemaVersion: 2,
     exportedAt: '2026-09-20T10:00:00+08:00',
     venues: [{ id: uuid(1), name: 'B 場', archived: true, sortOrder: 0 }],
     stakes: [],
@@ -56,6 +56,7 @@ function otherBackup(): BackupFile {
         note: null,
         fieldSize: null,
         finishPlace: null,
+        backers: [],
         createdAt: '2026-09-01T23:00:00+08:00',
         updatedAt: '2026-09-01T23:00:00+08:00',
       },

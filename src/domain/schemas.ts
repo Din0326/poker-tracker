@@ -6,6 +6,7 @@ import { z } from 'zod'
 import {
   PROFIT_COLOR_SCHEMES,
   SESSION_TYPES,
+  type Backer,
   type BuyIn,
   type Session,
   type SettingKey,
@@ -23,6 +24,18 @@ export const MAX_BUY_INS = 20
 export const MAX_NAME_LENGTH = 50
 export const MAX_NOTE_LENGTH = 500
 export const MAX_VENUE_NAME_LENGTH = 30
+/** 每場出資者筆數上限（3.8、Q12） */
+export const MAX_BACKERS = 10
+/** 出資者名稱長度上限（去除前後空白後，3.8、Q13） */
+export const MAX_BACKER_NAME_LENGTH = 20
+/** 比例千分比範圍：0.1%–100.0%（3.8） */
+export const MIN_SHARE_PERMILLE = 1
+export const MAX_SHARE_PERMILLE = 1000
+/** 加價倍數千分之一範圍：1.0×–3.0×（3.8、Q11） */
+export const MIN_MARKUP_PERMILLE = 1000
+export const MAX_MARKUP_PERMILLE = 3000
+/** 加價倍數預設 1.0×（3.8） */
+export const DEFAULT_MARKUP_PERMILLE = 1000
 
 /** 自訂驗證失敗的代碼（非 Zod 內建規則） */
 export const ISSUE = {
@@ -39,6 +52,8 @@ export const ISSUE = {
   emptyText: 'empty_text',
   textTooLong: 'text_too_long',
   bbLessThanSb: 'bb_less_than_sb',
+  duplicateBackerName: 'duplicate_backer_name',
+  backerShareTotalExceeded: 'backer_share_total_exceeded',
 } as const
 
 /** 字數以 Unicode code point 計算，emoji 算 1 字（A2） */
@@ -74,6 +89,26 @@ export const buyInSchema: z.ZodType<BuyIn> = z
   })
   .refine((b) => b.fee <= b.amount, { message: ISSUE.feeExceedsAmount, path: ['fee'] })
 
+/** 出資者名稱比較用的鍵：去除前後空白、不分大小寫（3.8） */
+export function backerNameKey(name: string): string {
+  return name.trim().toLowerCase()
+}
+
+/**
+ * 出資者（3.8）：名稱須已去除前後空白、1–20 字（code point）；比例、倍數為整數千分比。
+ * 同場重複與比例合計在 sessionSchema 檢查。
+ */
+export const backerSchema: z.ZodType<Backer> = z.strictObject({
+  name: z.string().superRefine((s, ctx) => {
+    if (s !== s.trim()) ctx.addIssue({ code: 'custom', message: ISSUE.notTrimmed })
+    const n = charCount(s)
+    if (n < 1) ctx.addIssue({ code: 'custom', message: ISSUE.emptyText })
+    if (n > MAX_BACKER_NAME_LENGTH) ctx.addIssue({ code: 'custom', message: ISSUE.textTooLong })
+  }),
+  sharePermille: z.int().min(MIN_SHARE_PERMILLE).max(MAX_SHARE_PERMILLE),
+  markupPermille: z.int().min(MIN_MARKUP_PERMILLE).max(MAX_MARKUP_PERMILLE),
+})
+
 /**
  * 選填文字欄位：必須是已正規化的值（A1）。
  * 未填存 null；有值時不可為空字串，長度以 code point 計（A2）。
@@ -104,6 +139,7 @@ export const sessionSchema: z.ZodType<Session> = z
     note: optionalText(MAX_NOTE_LENGTH, false),
     fieldSize: z.int().min(2).nullable(),
     finishPlace: z.int().min(1).nullable(),
+    backers: z.array(backerSchema).max(MAX_BACKERS),
     createdAt: timestampSchema,
     updatedAt: timestampSchema,
   })
@@ -125,6 +161,16 @@ export const sessionSchema: z.ZodType<Session> = z
       if (s.fieldSize !== null) issue(ISSUE.fieldSizeNotAllowed, 'fieldSize')
       if (s.finishPlace !== null) issue(ISSUE.finishPlaceNotAllowed, 'finishPlace')
     }
+    // 3.8：同場出資者名稱不可重複（去除前後空白、不分大小寫）；比例合計 ≤ 1000（100%）
+    const names = new Set<string>()
+    let shareTotal = 0
+    s.backers.forEach((b, i) => {
+      const key = backerNameKey(b.name)
+      if (names.has(key)) ctx.addIssue({ code: 'custom', message: ISSUE.duplicateBackerName, path: ['backers', i, 'name'] })
+      names.add(key)
+      shareTotal += b.sharePermille
+    })
+    if (shareTotal > MAX_SHARE_PERMILLE) issue(ISSUE.backerShareTotalExceeded, 'backers')
   })
 
 export const venueSchema: z.ZodType<Venue> = z.strictObject({
