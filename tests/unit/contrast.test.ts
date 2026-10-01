@@ -19,7 +19,7 @@ function contrast(a: string, b: string): number {
 }
 
 const backgrounds = ['--color-bg', '--color-surface', '--color-surface-raised']
-const foregrounds = ['--color-text', '--color-text-muted', '--color-accent', '--color-danger', '--color-red', '--color-green']
+const foregrounds = ['--color-text', '--color-text-muted', '--color-accent', '--color-danger', '--color-red', '--color-green', '--color-suit-red', '--color-suit-black']
 const pairs: [string, string][] = [
   ...foregrounds.flatMap((fg) => backgrounds.map((bg): [string, string] => [fg, bg])),
   ['--color-on-accent', '--color-accent'],

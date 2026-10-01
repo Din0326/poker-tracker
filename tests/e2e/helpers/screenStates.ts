@@ -1,6 +1,21 @@
 import type { Page } from '@playwright/test'
 import dayjs from 'dayjs'
 import { generateSeedData } from '../../../src/dev/seed'
+import {
+  FIXED_NOW,
+  actionButton,
+  betTo,
+  chooseMode,
+  dealStreet,
+  enterSetup79,
+  handBar,
+  openNewHand,
+  pickCards,
+  pickInSheet,
+  preflop79,
+  slotButton,
+} from './handForm'
+import { H_79, H_GG, fixtureHands } from './hands'
 import { DB_NAME, putRecords } from './idb'
 import { groupByButton, manySessions, openReport, reportTab } from './report'
 import { chooseImportFile, openActions } from './settings'
@@ -642,6 +657,252 @@ export const p6States: { name: string; setup: (page: Page) => Promise<void> }[] 
       await dismissInstallBanner(page)
       await page.getByLabel('買入（含服務費）', { exact: true }).fill('5000')
       await triggerUpdatePrompt(page)
+    },
+  },
+]
+
+// ---- H1 新增 / 編輯手牌（SPEC-v2-hands 第 5 節） ----
+
+/** 簡易模式填好手牌、公牌、大盲、結果、標籤 */
+async function fillSimpleHand(page: Page) {
+  await pickCards(page, slotButton(page.getByTestId('hero-cards'), '手牌', 1), ['As', 'Kd'])
+  await pickCards(page, slotButton(page.getByTestId('board-cards'), '公牌', 1), ['Kh', '7d', '2c', '9s'], { close: true })
+  await page.getByLabel('大盲', { exact: true }).fill('200')
+  await page.getByRole('group', { name: '結果' }).getByRole('button', { name: '贏' }).click()
+  await page.getByLabel('結果金額').fill('16800')
+  await page.getByLabel('新增標籤').fill('3bet')
+  await page.getByRole('button', { name: '新增', exact: true }).click()
+}
+
+/** 7.9 範例推進到翻牌行動中 */
+async function toFlopAction(page: Page) {
+  await openNewHand(page)
+  await enterSetup79(page)
+  await preflop79(page)
+  await dealStreet(page, ['Kh', '7d', '2c'], '開始翻牌')
+}
+
+/** 7.9 範例推進到結果步驟（攤牌選牌前） */
+async function toResult(page: Page) {
+  await toFlopAction(page)
+  await actionButton(page, '過牌').click()
+  await betTo(page, '下注', '700')
+  await actionButton(page, '跟注 $700').click()
+  await dealStreet(page, ['9s'], '開始轉牌')
+  await actionButton(page, '過牌').click()
+  await betTo(page, '下注', '1600')
+  await betTo(page, '加注', '15900')
+  await actionButton(page, '跟注 $14,300').click()
+  await dealStreet(page, ['3h'], '確認公牌')
+  await page.getByTestId('result-step').waitFor()
+}
+
+export const handStates: { name: string; setup: (page: Page) => Promise<void> }[] = [
+  {
+    name: 'hand-simple-empty',
+    setup: async (page) => {
+      await openNewHand(page)
+    },
+  },
+  {
+    name: 'hand-simple-filled',
+    setup: async (page) => {
+      await openNewHand(page)
+      await fillSimpleHand(page)
+      await page.getByLabel('大盲', { exact: true }).evaluate((el) => window.scrollTo(0, el.getBoundingClientRect().top + window.scrollY - 200))
+    },
+  },
+  {
+    name: 'hand-simple-errors',
+    setup: async (page) => {
+      await openNewHand(page)
+      await pickCards(page, slotButton(page.getByTestId('hero-cards'), '手牌', 1), ['As'], { close: true })
+      await pickCards(page, slotButton(page.getByTestId('board-cards'), '公牌', 1), ['Kh', '7d'], { close: true })
+      await page.getByLabel('大盲', { exact: true }).fill('12.5')
+      await handBar(page).getByRole('button', { name: '儲存' }).click()
+      await page.getByText('手牌需選 2 張或不選').waitFor()
+      await page.getByTestId('hero-cards').evaluate((el) => window.scrollTo(0, el.getBoundingClientRect().top + window.scrollY - 120))
+    },
+  },
+  {
+    name: 'hand-card-picker',
+    setup: async (page) => {
+      await openNewHand(page)
+      await pickCards(page, slotButton(page.getByTestId('hero-cards'), '手牌', 1), ['As', 'Ah'])
+      await slotButton(page.getByTestId('board-cards'), '公牌', 1).click()
+      await pickInSheet(page, ['Ad', 'Kh'])
+      await page.getByTestId('card-picker').getByRole('button', { name: '點數 K', exact: true }).click()
+    },
+  },
+  {
+    name: 'hand-complete-setup',
+    setup: async (page) => {
+      await openNewHand(page)
+      await chooseMode(page, '完整')
+    },
+  },
+  {
+    name: 'hand-complete-seats',
+    setup: async (page) => {
+      await openNewHand(page)
+      await chooseMode(page, '完整')
+      await page.getByRole('switch', { name: 'Straddle' }).click()
+      await page.getByRole('switch', { name: '座位 2 空位' }).click()
+      await page.getByLabel('座位 5 籌碼').fill('24000')
+      await page.getByRole('radio', { name: '座位 4 按鈕' }).check()
+      await page.getByRole('heading', { name: '座位' }).evaluate((el) => window.scrollTo(0, el.getBoundingClientRect().top + window.scrollY - 70))
+    },
+  },
+  {
+    name: 'hand-setup-errors',
+    setup: async (page) => {
+      await openNewHand(page)
+      await chooseMode(page, '完整')
+      await page.getByLabel('小盲', { exact: true }).fill('300')
+      await page.getByLabel('座位 3 籌碼').fill('')
+      await handBar(page).getByRole('button', { name: '開始翻前' }).click()
+      await page.getByText('大盲不可小於小盲').waitFor()
+      await page.getByLabel('小盲', { exact: true }).evaluate((el) => window.scrollTo(0, el.getBoundingClientRect().top + window.scrollY - 120))
+    },
+  },
+  {
+    name: 'hand-preflop-action',
+    setup: async (page) => {
+      await openNewHand(page)
+      await enterSetup79(page)
+      await actionButton(page, '棄牌').click()
+      await actionButton(page, '棄牌').click()
+      await actionButton(page, '棄牌').click()
+    },
+  },
+  {
+    name: 'hand-bet-sheet',
+    setup: async (page) => {
+      await toFlopAction(page)
+      await actionButton(page, '過牌').click()
+      await actionButton(page, '下注').click()
+      await page.getByRole('dialog').getByTestId('quick-twoThirds').click()
+    },
+  },
+  {
+    name: 'hand-bet-error',
+    setup: async (page) => {
+      await toFlopAction(page)
+      await actionButton(page, '過牌').click()
+      await actionButton(page, '下注').click()
+      await page.getByRole('dialog').getByLabel('下注到').fill('150')
+      await page.getByRole('dialog').getByRole('button', { name: '確定' }).click()
+      await page.getByRole('dialog').getByText('最少要下注 $200').waitFor()
+    },
+  },
+  {
+    name: 'hand-flop-board',
+    setup: async (page) => {
+      await openNewHand(page)
+      await enterSetup79(page)
+      await preflop79(page)
+      await page.getByTestId('street-board-slots').waitFor()
+    },
+  },
+  {
+    name: 'hand-flop-action',
+    setup: async (page) => {
+      await toFlopAction(page)
+      await actionButton(page, '過牌').click()
+    },
+  },
+  {
+    name: 'hand-result',
+    setup: async (page) => {
+      await toResult(page)
+      await pickCards(page, slotButton(page.getByTestId('result-step'), 'BB（6）', 1), ['Kd', 'Qs'])
+      await page.getByLabel('抽水').fill('400')
+      await page.getByTestId('result-pots').evaluate((el) => window.scrollTo(0, el.getBoundingClientRect().top + window.scrollY - 200))
+    },
+  },
+  {
+    name: 'hand-result-errors',
+    setup: async (page) => {
+      await toResult(page)
+      await handBar(page).getByRole('button', { name: '儲存' }).click()
+      await page.getByText('請選擇這位玩家的手牌，或標記為蓋牌').waitFor()
+    },
+  },
+  {
+    name: 'hand-menu',
+    setup: async (page) => {
+      await toFlopAction(page)
+      await page.getByRole('button', { name: '更多操作' }).click()
+      await page.getByRole('dialog', { name: '更多操作' }).waitFor()
+    },
+  },
+  {
+    name: 'hand-switch-simple-confirm',
+    setup: async (page) => {
+      await openNewHand(page)
+      await enterSetup79(page)
+      await actionButton(page, '棄牌').click()
+      await chooseMode(page, '簡易')
+      await page.getByRole('dialog').waitFor()
+    },
+  },
+  {
+    name: 'hand-draft-prompt',
+    setup: async (page) => {
+      await seed(page)
+      await openNewHand(page)
+      await pickCards(page, slotButton(page.getByTestId('hero-cards'), '手牌', 1), ['As', 'Kd'])
+      // 草稿 500ms 後寫入；以另一個場次進入新增手牌頁
+      await page.waitForTimeout(800)
+      await page.goto(`./#/hands/new?sessionId=${fixture.c1.id}`)
+      await page.getByRole('dialog', { name: '有一手未儲存的手牌草稿，要繼續編輯嗎？' }).waitFor()
+    },
+  },
+  {
+    name: 'hand-edit-gg-locked',
+    setup: async (page) => {
+      await seed(page)
+      await putRecords(page, 'hands', fixtureHands())
+      await page.clock.setFixedTime(FIXED_NOW)
+      await page.goto(`./#/hands/${H_GG}/edit`)
+      await page.getByTestId('locked-fields').waitFor()
+    },
+  },
+  {
+    name: 'hand-edit-setup-confirm',
+    setup: async (page) => {
+      await seed(page)
+      await putRecords(page, 'hands', fixtureHands())
+      await page.clock.setFixedTime(FIXED_NOW)
+      await page.goto(`./#/hands/${H_79}/edit`)
+      await page.getByTestId('result-step').waitFor()
+      await page.getByRole('navigation', { name: '進度' }).getByRole('button', { name: '設定' }).click()
+      await page.getByLabel('小盲', { exact: true }).fill('50')
+      await page.getByRole('dialog', { name: '修改牌局設定會清除所有已輸入的行動，確定嗎？' }).waitFor()
+    },
+  },
+  {
+    name: 'import-confirm-hands',
+    setup: async (page) => {
+      await seed(page)
+      await putRecords(page, 'hands', fixtureHands())
+      await page.goto('./#/settings')
+      await page.getByRole('heading', { level: 2, name: '資料備份' }).waitFor()
+      const hands = fixtureHands().slice(0, 3)
+      await chooseImportFile(
+        page,
+        JSON.stringify({
+          app: 'poker-tracker',
+          schemaVersion: 3,
+          exportedAt: '2026-09-28T21:05:00+08:00',
+          sessions: fixtureSessions,
+          venues,
+          stakes,
+          hands,
+          settings: {},
+        }),
+      )
+      await page.getByRole('dialog', { name: '匯入備份？' }).waitFor()
     },
   },
 ]
