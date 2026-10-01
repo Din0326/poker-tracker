@@ -1,5 +1,5 @@
 import { Copy, Pencil, Trash } from 'lucide-react'
-import { useEffect, useState, type ReactNode } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { useNavigate, useParams } from 'react-router'
 import { BottomSheet } from '../../components/BottomSheet'
 import { Page } from '../../components/Page'
@@ -105,12 +105,14 @@ export function SessionDetailPage() {
     }
   }, [repos, id, attempt])
 
+  // 計時器只關閉自己那則提示，避免舊計時器清掉剛出現的新提示（P6 修正）
   useEffect(() => {
     if (!error) return
-    const timer = setTimeout(() => setError(null), ERROR_TOAST_MS)
+    const timer = setTimeout(() => setError((current) => (current?.id === error.id ? null : current)), ERROR_TOAST_MS)
     return () => clearTimeout(timer)
   }, [error])
-  const showError = (text: string) => setError({ id: Date.now(), text })
+  const errorSeq = useRef(0)
+  const showError = (text: string) => setError({ id: ++errorSeq.current, text })
 
   const page = (children: ReactNode) => (
     <Page title={strings.pages.sessionDetail} backTo={SESSIONS_PATH}>

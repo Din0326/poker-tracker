@@ -1,7 +1,7 @@
 // 全 App 畫面文字集中於此（第 2 節開發規範）；元件內不得寫死中文
 export const strings = {
   app: {
-    name: '德州記帳',
+    name: 'Poker Road',
   },
   common: {
     back: '返回',
@@ -416,7 +416,7 @@ export const strings = {
       reasons: {
         invalidJson: '檔案不是有效的 JSON',
         notObject: '檔案內容不是備份格式',
-        wrongApp: '這不是德州記帳的備份檔',
+        wrongApp: '這不是 Poker Road 的備份檔',
         invalidSchemaVersion: '備份檔的版本號不正確',
         schemaTooNew: '備份檔來自較新版本的 App，請先更新 App 再匯入',
         invalidStructure: '備份檔缺少必要內容或含有無法辨識的內容',

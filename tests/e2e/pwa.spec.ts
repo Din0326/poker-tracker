@@ -10,12 +10,16 @@ test('manifest 欄位符合規格', async ({ page, request }) => {
   expect(res.ok()).toBe(true)
   const manifest = await res.json()
   expect(manifest).toMatchObject({
-    name: '德州記帳',
+    name: 'Poker Road',
+    short_name: 'Poker Road',
     display: 'standalone',
     start_url: './#/',
     scope: './',
     lang: 'zh-Hant-TW',
   })
+  // 主畫面圖示下方的名稱約 12 個半形字元內才不會被截斷（v1.3 名稱 Poker Road 為 10 字元）
+  expect(manifest.short_name.length).toBeLessThanOrEqual(12)
+  await expect(page).toHaveTitle('Poker Road')
   expect(manifest.theme_color).toMatch(/^#[0-9a-f]{6}$/)
   expect(manifest.background_color).toBe(manifest.theme_color)
   const icons = manifest.icons as { src: string; sizes: string; purpose: string }[]
@@ -40,7 +44,7 @@ test('iOS meta 與 apple-touch-icon', async ({ page, request }) => {
     'content',
     'black-translucent',
   )
-  await expect(page.locator('meta[name="apple-mobile-web-app-title"]')).toHaveAttribute('content', '德州記帳')
+  await expect(page.locator('meta[name="apple-mobile-web-app-title"]')).toHaveAttribute('content', 'Poker Road')
   const touchIcon = page.locator('link[rel="apple-touch-icon"]')
   await expect(touchIcon).toHaveAttribute('sizes', '180x180')
   const href = await touchIcon.getAttribute('href')

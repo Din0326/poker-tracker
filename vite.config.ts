@@ -19,11 +19,15 @@ function htmlPlaceholders(): Plugin {
   }
 }
 
+// 僅供 E2E（P6-3 版本更新）使用：以環境變數覆寫版本號與輸出資料夾，建置兩個內容不同的版本；未設定時行為不變
+const appVersion = process.env.P6_APP_VERSION ?? pkg.version
+const outDir = process.env.P6_OUT_DIR ?? 'dist'
+
 export default defineConfig({
   // 相對路徑，GitHub Pages 子路徑（/<repo>/）也能運作
   base: './',
   define: {
-    __APP_VERSION__: JSON.stringify(pkg.version),
+    __APP_VERSION__: JSON.stringify(appVersion),
   },
   plugins: [
     react(),
@@ -57,6 +61,7 @@ export default defineConfig({
       },
     }),
   ],
+  build: { outDir },
   server: { port: 5173 },
   preview: { port: 4173, strictPort: true },
 })

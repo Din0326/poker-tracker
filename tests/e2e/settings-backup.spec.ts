@@ -183,7 +183,7 @@ test.describe('8.4 / 8.5 匯出 → 清除 → 匯入', () => {
 test.describe('8.5 匯入拒絕：四種情況都正確拒絕且原資料不變', () => {
   const cases: { name: string; content: () => string; reason: string; detail?: RegExp }[] = [
     { name: '格式錯誤（不是 JSON）', content: () => '{ "app": "poker-tracker", ', reason: '檔案不是有效的 JSON' },
-    { name: 'app 不符', content: () => JSON.stringify(validBackup({ app: 'other-app' })), reason: '這不是德州記帳的備份檔' },
+    { name: 'app 不符', content: () => JSON.stringify(validBackup({ app: 'other-app' })), reason: '這不是 Poker Road 的備份檔' },
     {
       name: 'schemaVersion 過新',
       // 目前版本為 2，3 為過新

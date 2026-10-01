@@ -454,7 +454,7 @@ describe('8.5 錯誤顯示文字', () => {
 
   it('檔案層級錯誤沒有位置', () => {
     expect(describeBackupError({ code: 'invalidJson' })).toEqual({ reason: '檔案不是有效的 JSON', detail: null })
-    expect(describeBackupError({ code: 'wrongApp' }).reason).toBe('這不是德州記帳的備份檔')
+    expect(describeBackupError({ code: 'wrongApp' }).reason).toBe('這不是 Poker Road 的備份檔')
     expect(describeBackupError({ code: 'schemaTooNew' }).reason).toContain('較新版本')
   })
 
