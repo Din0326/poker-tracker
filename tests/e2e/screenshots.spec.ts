@@ -2,6 +2,7 @@ import { test } from '@playwright/test'
 import { openRecordPage } from './helpers/record'
 import {
   dismissInstallBanner,
+  handListStates,
   handStates,
   p6States,
   recordStates,
@@ -18,7 +19,7 @@ import {
 const outDir = process.env.SCREENSHOTS_DIR
 
 for (const scheme of ['dark', 'light'] as const) {
-  for (const state of [...stakingStates, ...settingsStates, ...p6States, ...handStates]) {
+  for (const state of [...stakingStates, ...settingsStates, ...p6States, ...handStates, ...handListStates]) {
     test(`截圖 ${state.name}-${scheme}`, async ({ page }) => {
       await page.emulateMedia({ colorScheme: scheme, reducedMotion: 'reduce' })
       await state.setup(page)
