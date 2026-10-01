@@ -236,12 +236,17 @@ export function RecordForm({ mode, data, initialSession, onDirtyChange, onSaved,
   }
 
   // ---- 提示：成功 3 秒、失敗 5 秒（可手動關閉） ----
+  // 計時器只關閉自己那則提示：舊提示的計時器若在新提示 commit 前觸發，不可把新提示一起清掉（P6 修正）
   useEffect(() => {
     if (!toast) return
-    const timer = setTimeout(() => setToast(null), toast.kind === 'success' ? SUCCESS_TOAST_MS : ERROR_TOAST_MS)
+    const timer = setTimeout(
+      () => setToast((current) => (current?.id === toast.id ? null : current)),
+      toast.kind === 'success' ? SUCCESS_TOAST_MS : ERROR_TOAST_MS,
+    )
     return () => clearTimeout(timer)
   }, [toast])
-  const showToast = (kind: Toast['kind'], text: string) => setToast({ id: Date.now(), kind, text })
+  const toastSeq = useRef(0)
+  const showToast = (kind: Toast['kind'], text: string) => setToast({ id: ++toastSeq.current, kind, text })
 
   // ---- 固定底部列高度寫入 --record-bar-offset，提示與頁面底部內距據此避開（9.2） ----
   useEffect(() => {
