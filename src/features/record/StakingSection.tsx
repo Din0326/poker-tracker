@@ -1,5 +1,5 @@
 import { Trash } from 'lucide-react'
-import { useState, type FocusEvent } from 'react'
+import { useEffect, useState, type FocusEvent } from 'react'
 import {
   Controller,
   type Control,
@@ -13,6 +13,7 @@ import { FieldError } from '../../components/FieldError'
 import { inputClass, secondaryButtonClass } from '../../components/controlStyles'
 import { FULL_PERMILLE, MAX_BACKERS, filterBackerSuggestions, formatMoney, formatPermille } from '../../domain'
 import { describedBy } from '../../lib/aria'
+import { scrollIntoVisibleArea } from '../../lib/viewport'
 import { strings } from '../../strings'
 import {
   BACKERS_TOTAL_ERROR_KEY,
@@ -63,6 +64,22 @@ export function StakingSection({
   const sold = validShareTotal(values.backers)
   const totalError = (errors as Record<string, RhfFieldError | undefined>)[BACKERS_TOTAL_ERROR_KEY]?.message
   const empty = strings.format.empty
+
+  // 建議清單出現時（名稱歷史為非同步載入），把整列（含清單）捲到固定底部列與鍵盤之上（9.2）
+  const suggestionCount =
+    suggestFor !== null && nameHistory
+      ? filterBackerSuggestions(
+          nameHistory,
+          values.backers[suggestFor]?.name ?? '',
+          values.backers.filter((_, i) => i !== suggestFor).map((b) => b.name),
+        ).length
+      : 0
+  const listOpen = suggestionCount > 0
+  useEffect(() => {
+    if (!listOpen) return
+    const active = document.activeElement
+    if (active instanceof HTMLElement) scrollIntoVisibleArea(active)
+  }, [listOpen, suggestFor])
 
   const addRow = () => {
     fieldArray.append(newBackerRow(), { shouldFocus: true })
@@ -140,7 +157,7 @@ export function StakingSection({
                 {t.name}
               </label>
               <div className="flex items-start gap-1">
-                <div className="relative min-w-0 flex-1">
+                <div className="min-w-0 flex-1">
                   <Controller
                     control={control}
                     name={`backers.${index}.name`}
@@ -169,12 +186,13 @@ export function StakingSection({
                     )}
                   />
                   {suggestions.length > 0 && (
-                    // 自製下拉（不用 <datalist>，iOS Safari 支援不一致）；pointerdown 不搶焦點，點選後填入並收起
+                    // 自製下拉（不用 <datalist>，iOS Safari 支援不一致）；pointerdown 不搶焦點，點選後填入並收起。
+                    // 放在版面流內（不浮在下方欄位上），避免點比例欄時誤點到建議
                     <div
                       role="group"
                       aria-label={t.suggestionsLabel}
                       data-testid="backer-suggestions"
-                      className="absolute inset-x-0 top-full z-10 mt-1 overflow-hidden rounded-(--radius-control) border border-(--color-border) bg-(--color-surface-raised) shadow-lg"
+                      className="mt-1 overflow-hidden rounded-(--radius-control) border border-(--color-border) bg-(--color-surface-raised) shadow-sm"
                     >
                       {suggestions.map((name) => (
                         <button
