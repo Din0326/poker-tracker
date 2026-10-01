@@ -80,6 +80,9 @@ test('service worker 預先快取後，伺服器離線仍可載入', async ({ pa
   await expect(page.getByRole('heading', { level: 1 })).toHaveText('新增場次')
   await page.goto(`${server.url}#/report`)
   await expect(page.getByRole('heading', { level: 1 })).toHaveText('報表')
+  // 報表頁是獨立的 lazy chunk：離線時也要從預先快取載入並顯示內容（不停在載入中）
+  await expect(page.getByText('還沒有紀錄')).toBeVisible()
+  await expect(page.getByRole('status').filter({ hasText: '載入中' })).toHaveCount(0)
   // 圖示等靜態資源也在預先快取內
   const iconOk = await page.evaluate(async () => (await fetch('./icons/icon-192.png')).ok)
   expect(iconOk).toBe(true)

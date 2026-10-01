@@ -1,5 +1,6 @@
 import { expect, test, type Page } from '@playwright/test'
 import { readSettings, readStore } from './helpers/idb'
+import { waitForAnimations } from './helpers/layout'
 import {
   addStakeInline,
   addVenueInline,
@@ -428,6 +429,8 @@ test('固定底部列在分頁列上方，提示不遮擋儲存鈕', async ({ pa
   await setDuration(page, 1, 30)
   await saveButton(page).click()
   await expect(toast(page)).toBeVisible()
+  // 提示出現動效（translateY）進行中位置尚未到定位，等動畫結束再量
+  await waitForAnimations(page)
 
   const save = (await saveButton(page).boundingBox())!
   const toastBox = (await toast(page).locator('div').first().boundingBox())!

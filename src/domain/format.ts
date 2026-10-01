@@ -144,6 +144,11 @@ export function formatFinishPlace(place: number, fieldSize: number, ratio: numbe
   return f.finishPlace(place, fieldSize, parts(ratio * 100, 1, false).text)
 }
 
+/** MTT 只填參賽人數、沒填名次時（7.2 補充）`共 180 人`；人數格式與 formatFinishPlace 一致（不加千分位） */
+export function formatFieldSizeOnly(fieldSize: number): string {
+  return f.fieldSizeOnly(fieldSize)
+}
+
 /** 建立 / 修改時間戳（ISO 8601 含時區）以裝置本地時間顯示 `2026/09/28 21:05` */
 export function formatTimestamp(iso: string): string {
   const d = dayjs(iso)

@@ -65,6 +65,16 @@ export function retrySessions(repos: Repositories): void {
   void refreshSessions(repos)
 }
 
+/**
+ * 丟棄快取（8.5 匯入、8.9 清除所有資料後）：回到載入中，作廢進行中的讀取；
+ * 下次進入列表或報表時重新讀取，不會先顯示舊資料。
+ */
+export function invalidateSessions(): void {
+  requestSeq++
+  owner = null
+  setState({ status: 'loading' })
+}
+
 function patch(fn: (sessions: Session[]) => Session[]): void {
   if (state.status !== 'ready') return
   // 進行中的讀取結果可能是改動前的資料，作廢它

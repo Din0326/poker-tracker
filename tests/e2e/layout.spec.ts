@@ -1,6 +1,7 @@
 import { expect, test } from '@playwright/test'
+import { waitForAnimations } from './helpers/layout'
 
-const pages = ['#/', '#/sessions', '#/report', '#/settings', '#/settings/venues', '#/sessions/x']
+const pages = ['#/', '#/sessions', '#/report', '#/settings', '#/settings/venues', '#/settings/stakes', '#/sessions/x']
 
 // 9.2：375–430px 間不得出現橫向捲動
 for (const width of [375, 390, 430]) {
@@ -30,7 +31,7 @@ test('寬度大於 480px 時內容置中、最大寬度 480px', async ({ page })
 })
 
 test('可點擊元件觸控區域至少 44×44px', async ({ page }) => {
-  for (const hash of ['#/', '#/settings', '#/settings/venues']) {
+  for (const hash of ['#/', '#/settings', '#/settings/venues', '#/settings/stakes']) {
     await page.goto(`./${hash}`)
     await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
     if (hash === '#/') {
@@ -39,6 +40,8 @@ test('可點擊元件觸控區域至少 44×44px', async ({ page }) => {
       await page.getByRole('button', { name: '＋ 再買入' }).click()
       await expect(page.getByRole('button', { name: '清除' })).toBeVisible()
     }
+    // 子頁推入等動效進行中的 transform 會讓尺寸量到 43.999…（浮點誤差），等動畫結束再量
+    await waitForAnimations(page)
     const targets = page.locator('a:visible, button:visible, select:visible, input:visible, textarea:visible')
     const count = await targets.count()
     expect(count).toBeGreaterThan(0)
