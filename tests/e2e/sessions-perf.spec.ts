@@ -10,17 +10,35 @@ import { seed, summary } from './helpers/sessions'
 //
 // 門檻說明：
 // - 長 frame 定義為 > 50ms（Q：沒有超過 50ms 的長任務 / 長 frame）。
-// - headless WebKit（Windows、軟體繪製）即使只是捲動「已全部渲染好的同一份 DOM」也會偶爾出現 > 50ms 的 frame，
-//   嚴格的「0 個長 frame」無法在此環境穩定達成；因此以下列回歸門檻把關，實測數字寫入測試輸出（console 與 annotation），
-//   實機是否卡頓由 iPhone 實機判斷。
+// - headless WebKit（軟體繪製）即使只是捲動「已全部渲染好的同一份 DOM」也會出現 > 50ms 的 frame，
+//   嚴格的「0 個長 frame」無法在此環境穩定達成；實機是否卡頓由 iPhone 實機判斷。
+// - 門檻採「相對同一次執行的 baseline」：同一台機器、同一個瀏覽器行程，先邊捲邊分批載入（loading），
+//   再把已全部渲染的 DOM 從頭捲一次（baseline）。比較兩者只反映「分批載入」本身多出的負擔，與機器速度無關。
+//   原本的絕對門檻（比例 ≤ 0.15、p95 ≤ 80ms、最大 ≤ 250ms）是在開發者 Windows 機器上訂的，
+//   GitHub Actions runner 慢很多，連 baseline（純捲動）本身都遠超過絕對門檻，導致 CI 不穩定失敗。
+//   實測數字（frames 皆 1912）：
+//   | 環境      | loading 長 frame      | loading p95 / max | baseline 長 frame     | baseline median / p95 / max |
+//   | 本機      | 61（3.2%）            | 48 / 90           | 8（0.4%）             | 30 / 36 / 74                |
+//   | PR #4 CI  | 338（17.7%）          | 61 / 82           | 1465（76.6%）         | 53 / 64 / -                 |
+//   | PR #5 CI  | 668–744（34.9–38.9%） | 70–71 / 95–114    | 1866–1887（97.6–98.7%）| 62–66 / 74–79 / -           |
+//   邊載入邊捲動其實比同機 baseline 還好，失敗純粹來自機器速度。新門檻驗算（全部通過）：
+//   - 比例：本機 3.2% ≤ 0.4%+15%；#4 17.7% ≤ 76.6%+15%；#5 38.9% ≤ 97.6%+15%。
+//   - p95：本機 48 ≤ max(80, 36×1.5=54)=80；#4 61 ≤ max(80, 96)=96；#5 71 ≤ max(80, 111)=111。
+//   - 最大：本機 90 ≤ max(250, 74×3=222)=250；#4 82、#5 114 ≤ 250（下限已足夠）。
+//   仍能抓到明顯退步：例如本機若分批載入造成 20% 長 frame（> 0.4%+15%）、p95 升到 90ms（> 80）
+//   或出現 300ms 的單一 frame（> 250），都會失敗；CI 上 loading 若明顯比同機 baseline 差也會失敗。
+//   已知限制：baseline 比例 ≥ 85% 時（CI 很慢）比例門檻等同不檢查，此時由 p95 / 最大 frame 把關。
+// - 各門檻保留絕對下限（80ms、250ms），快機器上 baseline 很漂亮時不會因倍數過小而變得過嚴。
 const FIRST_RENDER_LIMIT_MS = 1000
 const LONG_FRAME_MS = 50
-/** 載入過程中長 frame 佔全部 frame 的比例上限 */
-const LONG_FRAME_RATIO_LIMIT = 0.15
-/** 第 95 百分位 frame 間隔上限 */
-const P95_LIMIT_MS = 80
-/** 單一 frame 間隔上限 */
-const MAX_FRAME_LIMIT_MS = 250
+/** 長 frame 比例：loading 最多比 baseline 多幾個百分點（絕對值） */
+const LONG_FRAME_RATIO_MARGIN = 0.15
+/** p95 frame 間隔：絕對下限與相對 baseline 的倍數 */
+const P95_FLOOR_MS = 80
+const P95_BASELINE_FACTOR = 1.5
+/** 單一 frame 間隔：絕對下限與相對 baseline 的倍數 */
+const MAX_FRAME_FLOOR_MS = 250
+const MAX_FRAME_BASELINE_FACTOR = 3
 /** 每個 frame 捲動的距離：150px ≈ 9,000px/s（60fps），相當於快速滑動 */
 const SCROLL_STEP_PX = 150
 
@@ -122,7 +140,13 @@ test('P3-3 5,000 筆：首屏渲染時間與捲動到底的長 frame 量測', as
   await page.waitForTimeout(500)
   const baseline = await scrollToEnd(page)
 
-  const report = { firstRenderMs: Math.round(firstRenderMs), loading, baseline }
+  // 相對同機 baseline 的門檻（理由見檔案開頭說明）
+  const limits = {
+    longFrameRatio: baseline.longFrames / baseline.frames + LONG_FRAME_RATIO_MARGIN,
+    p95FrameMs: Math.max(P95_FLOOR_MS, baseline.p95FrameMs * P95_BASELINE_FACTOR),
+    maxFrameMs: Math.max(MAX_FRAME_FLOOR_MS, baseline.maxFrameMs * MAX_FRAME_BASELINE_FACTOR),
+  }
+  const report = { firstRenderMs: Math.round(firstRenderMs), loading, baseline, limits }
   console.log(`P3-3 效能量測：${JSON.stringify(report)}`)
   test.info().annotations.push({ type: 'perf', description: JSON.stringify(report) })
 
@@ -131,8 +155,8 @@ test('P3-3 5,000 筆：首屏渲染時間與捲動到底的長 frame 量測', as
   if (loading.supportsLongTask) {
     expect(loading.longTaskMaxMs).toBeLessThanOrEqual(LONG_FRAME_MS)
   } else {
-    expect(loading.longFrames / loading.frames).toBeLessThanOrEqual(LONG_FRAME_RATIO_LIMIT)
-    expect(loading.p95FrameMs).toBeLessThanOrEqual(P95_LIMIT_MS)
-    expect(loading.maxFrameMs).toBeLessThanOrEqual(MAX_FRAME_LIMIT_MS)
+    expect(loading.longFrames / loading.frames).toBeLessThanOrEqual(limits.longFrameRatio)
+    expect(loading.p95FrameMs).toBeLessThanOrEqual(limits.p95FrameMs)
+    expect(loading.maxFrameMs).toBeLessThanOrEqual(limits.maxFrameMs)
   }
 })
