@@ -18,14 +18,22 @@ import { strings } from './strings'
 // 報表頁（含 Recharts）拆成獨立 chunk，進入報表時才載入；PWA 預先快取包含此 chunk，離線照常可用
 const ReportPage = lazy(() => import('./features/report/ReportPage').then((m) => ({ default: m.ReportPage })))
 
-function ReportFallback() {
+// v2 手牌的新增 / 編輯頁（SPEC-v2-hands 第 5 節）同樣拆成獨立 chunk，不增加首頁（新增場次）的載入量
+const HandNewPage = lazy(() => import('./features/hands/HandNewPage').then((m) => ({ default: m.HandNewPage })))
+const HandEditPage = lazy(() => import('./features/hands/HandEditPage').then((m) => ({ default: m.HandEditPage })))
+
+function LoadingPage({ title, backTo }: { title: string; backTo?: string }) {
   return (
-    <Page title={strings.pages.report}>
+    <Page title={title} {...(backTo !== undefined ? { backTo } : {})}>
       <p role="status" className="py-10 text-center text-(--color-text-muted)">
         {strings.common.loading}
       </p>
     </Page>
   )
+}
+
+function ReportFallback() {
+  return <LoadingPage title={strings.pages.report} />
 }
 
 function AppLayout() {
@@ -53,6 +61,23 @@ const routes: RouteObject[] = [
       { path: 'sessions', element: <SessionsPage /> },
       { path: 'sessions/:id', element: <SessionDetailPage /> },
       { path: 'sessions/:id/edit', element: <SessionEditPage /> },
+      // v2 手牌（SPEC-v2-hands 5.1）：H1 先提供新增與編輯；手牌列表、詳情、匯入於 H2–H4 加入
+      {
+        path: 'hands/new',
+        element: (
+          <Suspense fallback={<LoadingPage title={strings.pages.handNew} backTo="/" />}>
+            <HandNewPage />
+          </Suspense>
+        ),
+      },
+      {
+        path: 'hands/:id/edit',
+        element: (
+          <Suspense fallback={<LoadingPage title={strings.pages.handEdit} backTo="/" />}>
+            <HandEditPage />
+          </Suspense>
+        ),
+      },
       {
         path: 'report',
         element: (

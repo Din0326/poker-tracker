@@ -31,6 +31,7 @@ import {
 import { useAppData } from '../../lib/appData'
 import { hideGlobalToast, showGlobalToast } from '../../lib/globalToast'
 import { strings } from '../../strings'
+import { handNewPath } from '../hands/handPaths'
 import { parseDraft } from '../record/formModel'
 import { sessionToCopyDraft } from './copySession'
 import { listMemory } from './listMemory'
@@ -366,6 +367,11 @@ export function SessionDetailPage() {
           {session.note ?? empty}
         </p>
       </section>
+
+      {/* SPEC-v2-hands 5.1、6.3：「＋ 新增手牌」→ 新增手牌並預先關聯該場（手牌區塊的列表於 H2 加入） */}
+      <button type="button" onClick={() => void navigate(handNewPath(session.id))} className={`${secondaryButtonClass} mt-4 w-full`}>
+        {strings.hands.addHand}
+      </button>
 
       <div className="mt-6 grid gap-3">
         <button type="button" onClick={() => void navigate(`${SESSIONS_PATH}/${encodeURIComponent(session.id)}/edit`)} className={actionClass}>

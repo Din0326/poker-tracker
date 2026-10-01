@@ -22,6 +22,9 @@
   --color-on-danger: #ffffff;
   --color-red: #b3261e;
   --color-green: #17703a;
+  /* 牌面花色（SPEC-v2-hands 3.6）：♥♦ 用 suit-red、♠♣ 用 suit-black；花色永遠以符號表示，不只靠顏色 */
+  --color-suit-red: #b3261e;
+  --color-suit-black: #15171b;
   --color-backdrop: rgba(0, 0, 0, 0.4);
 
   /* 間距、圓角、動效 */
@@ -57,6 +60,8 @@
     --color-on-danger: #1f0503;
     --color-red: #ff6f6f;
     --color-green: #45d483;
+    --color-suit-red: #ff7a70;
+    --color-suit-black: #eceef2;
     --color-backdrop: rgba(0, 0, 0, 0.6);
   }
 }
