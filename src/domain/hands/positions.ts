@@ -62,3 +62,15 @@ export function positionsBySeat(seatNos: readonly number[], buttonSeat: number):
   order.forEach((seat, i) => map.set(seat, names[i] as Position))
   return map
 }
+
+/**
+ * 5.8 補齊為完整手牌：依位置推算按鈕座位——找出讓 heroSeat 成為 position 的按鈕座位。
+ * 推算不出（例如位置在該人數不存在、heroSeat 不在座位中）時回傳 null。
+ */
+export function buttonSeatForPosition(seatNos: readonly number[], heroSeat: number, position: Position): number | null {
+  if (!seatNos.includes(heroSeat)) return null
+  for (const button of [...seatNos].sort((a, b) => a - b)) {
+    if (positionsBySeat(seatNos, button).get(heroSeat) === position) return button
+  }
+  return null
+}
