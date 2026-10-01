@@ -10,6 +10,10 @@ import { openList, seed } from './helpers/sessions'
 // 所以下面的版面量測（boundingBox）在 Windows 上即使拿掉修正也會通過，只是防止版面本身寫壞；
 // 真正能防止回歸的是 computed style 檢查：日期框必須是 appearance: none 且 min-width: 0px，
 // 這兩個條件就是 iOS 上不溢出的前提。
+//
+// 垂直置中同理：日期文字畫在 WebKit 的 shadow DOM（::-webkit-datetime-edit）裡，
+// 頁面腳本量不到文字框位置，select 的選項文字也一樣，無法穩定比較兩者的文字中心或基線，
+// 所以不做像素比對，改以 padding / line-height 的 computed style 把關。
 
 type Box = { x: number; y: number; width: number; height: number }
 
@@ -39,12 +43,24 @@ async function checkDateInput(input: Locator, width: number, label: string): Pro
       minWidth: cs.minWidth,
       fontSize: parseFloat(cs.fontSize),
       textAlign: cs.textAlign,
+      paddingTop: cs.paddingTop,
+      paddingBottom: cs.paddingBottom,
+      lineHeight: parseFloat(cs.lineHeight),
+      contentHeight: el.clientHeight,
     }
   })
   // 關鍵回歸檢查：拿掉 index.css 的修正時 appearance 會回到 auto、min-width 回到 auto
   expect(style.appearance, `${label} appearance`).toBe('none')
   expect(style.minWidth, `${label} min-width`).toBe('0px')
   expect(style.textAlign, `${label} 文字靠左`).toBe('left')
+  // 垂直置中（iPhone 實機回報：日期文字貼在框上緣）：
+  // iOS 在 appearance: none 後不會把值區塊垂直置中，只能靠「行高 = 內容高度」讓單行文字落在正中央。
+  // Windows WebKit 的原生日期控制項會自行置中，無法重現這個偏移，所以用 computed style 把關：
+  // 沒有垂直內距、line-height 等於內容高度（clientHeight = 48 - 上下框線 2px = 46px），容許 ±1px。
+  // 若 line-height 退回 1.5（24px）或被 text-base 蓋掉，這裡就會失敗。
+  expect(style.paddingTop, `${label} padding-top`).toBe('0px')
+  expect(style.paddingBottom, `${label} padding-bottom`).toBe('0px')
+  expect(Math.abs(style.lineHeight - style.contentHeight), `${label} 行高（${style.lineHeight}px）應等於內容高度（${style.contentHeight}px）`).toBeLessThanOrEqual(1)
   // 高度與其他輸入框一致（inputClass 的 h-12）
   expect(box.height, `${label} 高度`).toBeCloseTo(48, 0)
   expect(style.fontSize, `${label} 字級（< 16px 會觸發 iOS 聚焦放大）`).toBeGreaterThanOrEqual(16)

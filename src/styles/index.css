@@ -40,19 +40,52 @@ body {
     box-sizing: border-box;
     width: 100%;
     min-width: 0;
-    /* 文字垂直置中：單行行高，交給輸入框本身的高度置中 */
-    line-height: 1.5;
     text-align: left;
   }
+}
 
-  /* appearance: none 後 iOS 會把日期文字置中，改為靠左，與其他輸入框對齊 */
-  input[type='date']::-webkit-date-and-time-value,
-  input[type='time']::-webkit-date-and-time-value,
-  input[type='datetime-local']::-webkit-date-and-time-value,
-  input[type='month']::-webkit-date-and-time-value {
-    margin: 0;
-    text-align: left;
-  }
+/*
+ * 原生日期 / 時間輸入框文字垂直置中（iOS Safari）
+ * appearance: none 之後，iOS 不再把日期值區塊（::-webkit-date-and-time-value）在 input 內垂直置中，
+ * 值區塊只有一行行高那麼高並貼在內容框頂端。若 line-height 是 1.5（16px × 1.5 = 24px），
+ * 48px 高的框裡文字就會貼在上緣，比同列的小時選單明顯偏上（iPhone 實機回報）。
+ * 解法：不依賴 iOS 的自動置中，直接讓「一行」等於整個內容高度——
+ *   inputClass 為 h-12（3rem = 48px）、border（上下各 1px）、box-sizing: border-box、無垂直內距，
+ *   所以內容高度 = 3rem - 2px = 46px；line-height 設成這個值，單行文字自然落在正中央。
+ * 這段刻意不放在 @layer base：inputClass 的 text-base（utilities 層）會一併設定 line-height，
+ * 放在 base 層會被蓋掉；未分層的規則優先於所有 layer。寬度修正仍在上方 base 層。
+ * 若日後改了 inputClass 的高度或框線寬度，這裡的 calc 要一起改。
+ */
+input[type='date'],
+input[type='time'],
+input[type='datetime-local'],
+input[type='month'] {
+  padding-top: 0;
+  padding-bottom: 0;
+  line-height: calc(3rem - 2px);
+}
+
+/* 值區塊：去掉 iOS 預設外距、改為靠左（appearance: none 後 iOS 預設置中），高度與行高一致 */
+input[type='date']::-webkit-date-and-time-value,
+input[type='time']::-webkit-date-and-time-value,
+input[type='datetime-local']::-webkit-date-and-time-value,
+input[type='month']::-webkit-date-and-time-value {
+  margin: 0;
+  text-align: left;
+  line-height: inherit;
+  min-height: calc(3rem - 2px);
+}
+
+/* WebKit 內建的編輯欄位內距（上下約 1px）會讓文字偏移，歸零 */
+input[type='date']::-webkit-datetime-edit,
+input[type='time']::-webkit-datetime-edit,
+input[type='datetime-local']::-webkit-datetime-edit,
+input[type='month']::-webkit-datetime-edit,
+input[type='date']::-webkit-datetime-edit-fields-wrapper,
+input[type='time']::-webkit-datetime-edit-fields-wrapper,
+input[type='datetime-local']::-webkit-datetime-edit-fields-wrapper,
+input[type='month']::-webkit-datetime-edit-fields-wrapper {
+  padding: 0;
 }
 
 /* 所有數字等寬對齊（9.3） */
