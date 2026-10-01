@@ -400,13 +400,15 @@ export const strings = {
       title: '匯入備份？',
       current: '目前',
       backup: '備份檔',
-      sessionCount: (n: number) => `${n} 場`,
+      /** v2 10.2「N 場、H 手」 */
+      dataCount: (sessions: number, hands: number) => `${sessions} 場、${hands} 手`,
       backupTime: (ts: string) => `備份時間 ${ts}`,
       warning: '匯入會取代目前所有資料，建議先匯出備份',
       confirm: '匯入',
       importing: '匯入中…',
     },
-    imported: (n: number) => `已匯入 ${n} 場紀錄`,
+    /** v2 10.2「已匯入 M 場紀錄、K 手牌」 */
+    imported: (sessions: number, hands: number) => `已匯入 ${sessions} 場紀錄、${hands} 手牌`,
     importFailed: '匯入失敗，目前資料未變更',
     importReadFailed: '無法讀取檔案，請再試一次',
     importError: {

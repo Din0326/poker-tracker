@@ -28,7 +28,7 @@ const t = strings.settings
 export const BACKUP_SECTION_ID = 'settings-backup'
 
 type Busy = 'json' | 'csv' | 'import' | null
-type PendingImport = { backup: BackupFile; currentCount: number }
+type PendingImport = { backup: BackupFile; currentSessions: number; currentHands: number }
 
 const toast = (text: string, ok: boolean) =>
   showGlobalToast({ text, durationMs: ok ? SUCCESS_TOAST_MS : ERROR_TOAST_MS })
@@ -131,7 +131,9 @@ export function BackupSection({ lastBackupAt, onChanged }: { lastBackupAt: strin
         setImportError(result.error)
         return
       }
-      setPending({ backup: result.backup, currentCount: await db.sessions.count() })
+      // v2 10.2：確認視窗並排顯示場次數與手牌數
+      const [currentSessions, currentHands] = await Promise.all([db.sessions.count(), db.hands.count()])
+      setPending({ backup: result.backup, currentSessions, currentHands })
     } catch {
       toast(t.importFailed, false)
     } finally {
@@ -147,7 +149,7 @@ export function BackupSection({ lastBackupAt, onChanged }: { lastBackupAt: strin
       await replaceAllData(db, backup)
       resetAppState(backup.settings.profitColorScheme ?? DEFAULT_PROFIT_SCHEME)
       setPending(null)
-      toast(t.imported(backup.sessions.length), true)
+      toast(t.imported(backup.sessions.length, backup.hands.length), true)
       onChanged()
     } catch {
       setPending(null)
@@ -214,13 +216,13 @@ export function BackupSection({ lastBackupAt, onChanged }: { lastBackupAt: strin
               <div className="rounded-(--radius-card) border border-(--color-border) bg-(--color-surface-raised) px-3 py-2">
                 <p className="text-sm text-(--color-text-muted)">{s.current}</p>
                 <p className="num mt-1 text-lg font-semibold" data-testid="import-current-count">
-                  {s.sessionCount(pending.currentCount)}
+                  {s.dataCount(pending.currentSessions, pending.currentHands)}
                 </p>
               </div>
               <div className="rounded-(--radius-card) border border-(--color-border) bg-(--color-surface-raised) px-3 py-2">
                 <p className="text-sm text-(--color-text-muted)">{s.backup}</p>
                 <p className="num mt-1 text-lg font-semibold" data-testid="import-backup-count">
-                  {s.sessionCount(pending.backup.sessions.length)}
+                  {s.dataCount(pending.backup.sessions.length, pending.backup.hands.length)}
                 </p>
                 <p className="num mt-1 text-xs text-(--color-text-muted)" data-testid="import-backup-time">
                   {s.backupTime(formatTimestamp(pending.backup.exportedAt))}
