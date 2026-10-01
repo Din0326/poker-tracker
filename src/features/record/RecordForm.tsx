@@ -672,7 +672,8 @@ export function RecordForm({ mode, data, initialSession, onDirtyChange, onSaved,
       <legend className="mb-1 flex w-full items-baseline justify-between text-sm">
         <span className="font-medium text-(--color-text-muted)">{f.startAt}</span>
       </legend>
-      <div className="grid grid-cols-[1fr_7rem] gap-3">
+      {/* 日期欄用 minmax(0,1fr)：欄寬不受日期框固有寬度撐開（iOS 日期溢出修正） */}
+      <div className="grid grid-cols-[minmax(0,1fr)_7rem] gap-3">
         <Controller
           control={control}
           name="startDate"

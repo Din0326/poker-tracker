@@ -21,6 +21,40 @@ body {
   overscroll-behavior-y: none;
 }
 
+/*
+ * 原生日期 / 時間輸入框（iOS Safari 溢出修正）
+ * iOS WebKit 在保留原生外觀時會給 input[type=date] 一個固有最小寬度，
+ * 忽略 width: 100% 與 min-width: 0，在窄欄位（並排起迄日、日期 + 小時）中溢出並蓋到相鄰欄位。
+ * 改成 appearance: none 後寬度才受版面控制；點擊仍會開啟原生滾輪選擇器。
+ * 放在 base 層而非 controlStyles：全站所有原生日期欄位一律生效，新欄位不會漏套；
+ * 高度、內距、字級、框線仍由 inputClass（utilities 層）決定，與其他輸入框一致。
+ */
+@layer base {
+  input[type='date'],
+  input[type='time'],
+  input[type='datetime-local'],
+  input[type='month'] {
+    -webkit-appearance: none;
+    appearance: none;
+    display: block;
+    box-sizing: border-box;
+    width: 100%;
+    min-width: 0;
+    /* 文字垂直置中：單行行高，交給輸入框本身的高度置中 */
+    line-height: 1.5;
+    text-align: left;
+  }
+
+  /* appearance: none 後 iOS 會把日期文字置中，改為靠左，與其他輸入框對齊 */
+  input[type='date']::-webkit-date-and-time-value,
+  input[type='time']::-webkit-date-and-time-value,
+  input[type='datetime-local']::-webkit-date-and-time-value,
+  input[type='month']::-webkit-date-and-time-value {
+    margin: 0;
+    text-align: left;
+  }
+}
+
 /* 所有數字等寬對齊（9.3） */
 .num {
   font-variant-numeric: tabular-nums;
