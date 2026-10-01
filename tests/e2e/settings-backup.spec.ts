@@ -2,7 +2,21 @@ import { expect, test, type Page } from '@playwright/test'
 import type { Session } from '../../src/domain/types'
 import { putRecords, readSettings, readStore, type StoreName } from './helpers/idb'
 import { manySessions, openReport } from './helpers/report'
-import { fixtureSessions, heading, nav, openList, rows, seed, stakes, venues, S_50, V_6BET } from './helpers/sessions'
+import { readFileSync } from 'node:fs'
+import {
+  fixtureSessions,
+  heading,
+  nav,
+  openList,
+  rows,
+  seed,
+  stakedFixture,
+  stakedSessions,
+  stakes,
+  venues,
+  S_50,
+  V_6BET,
+} from './helpers/sessions'
 import {
   chooseImportFile,
   clearAllData,
@@ -52,10 +66,11 @@ async function snapshot(page: Page) {
   return out
 }
 
+// v1.2：目前備份格式為 schemaVersion 2（sessions 含 backers）
 function validBackup(overrides: Record<string, unknown> = {}) {
   return {
     app: 'poker-tracker',
-    schemaVersion: 1,
+    schemaVersion: 2,
     exportedAt: '2026-09-28T21:05:00+08:00',
     sessions: fixtureSessions,
     venues,
@@ -66,10 +81,12 @@ function validBackup(overrides: Record<string, unknown> = {}) {
 }
 
 test.describe('8.4 / 8.5 匯出 → 清除 → 匯入', () => {
-  test('匯出 JSON → 清除所有資料 → 匯入，四張表逐欄完全還原', async ({ page }) => {
+  // v1.2：資料含 2 筆有出資者的場次（9 場），backers 也要逐欄還原
+  test('P5.5 匯出 JSON → 清除所有資料 → 匯入，四張表逐欄完全還原（含 backers）', async ({ page }) => {
     await disableShare(page)
-    await seedAll(page)
+    await seedAll(page, [...fixtureSessions, ...stakedSessions])
     const before = await snapshot(page)
+    expect((before.sessions as { backers: unknown[] }[]).filter((s) => s.backers.length > 0)).toHaveLength(2)
 
     await openSettings(page)
     await expect(page.getByTestId('last-backup')).toHaveText('從未備份')
@@ -78,6 +95,10 @@ test.describe('8.4 / 8.5 匯出 → 清除 → 匯入', () => {
     await expect(page.getByTestId('global-toast-text')).toHaveText('已匯出備份')
     const backup = JSON.parse(body.toString('utf8'))
     expect(Object.keys(backup)).toEqual(['app', 'schemaVersion', 'exportedAt', 'sessions', 'venues', 'stakes', 'settings'])
+    // schemaVersion 2，每筆 session 含 backers（沒有賣股為 []）
+    expect(backup.schemaVersion).toBe(2)
+    for (const s of backup.sessions) expect(Array.isArray(s.backers)).toBe(true)
+    expect(backup.sessions.find((s: { id: string }) => s.id === stakedFixture.s14.id).backers).toEqual(stakedFixture.s14.backers)
     expect(backup.exportedAt).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\+08:00$/)
     // settings 不含 recordDraft 與 lastBackupAt
     expect(backup.settings).toEqual({
@@ -92,7 +113,7 @@ test.describe('8.4 / 8.5 匯出 → 清除 → 匯入', () => {
 
     // 先進紀錄列表建立快取，確認清除後快取失效
     await openList(page)
-    await expect(rows(page)).toHaveCount(7)
+    await expect(rows(page)).toHaveCount(9)
     await openSettings(page)
     await clearAllData(page)
     await expect(page.getByTestId('global-toast-text')).toHaveText('已清除所有資料')
@@ -107,11 +128,11 @@ test.describe('8.4 / 8.5 匯出 → 清除 → 匯入', () => {
     await chooseImportFile(page, body)
     const sheet = page.getByRole('dialog', { name: '匯入備份？' })
     await expect(sheet.getByTestId('import-current-count')).toHaveText('0 場')
-    await expect(sheet.getByTestId('import-backup-count')).toHaveText('7 場')
+    await expect(sheet.getByTestId('import-backup-count')).toHaveText('9 場')
     await expect(sheet).toContainText('匯入會取代目前所有資料，建議先匯出備份')
     await sheet.getByRole('button', { name: '匯入', exact: true }).click()
     await expect(sheet).toHaveCount(0)
-    await expect(page.getByTestId('global-toast-text')).toHaveText('已匯入 7 場紀錄')
+    await expect(page.getByTestId('global-toast-text')).toHaveText('已匯入 9 場紀錄')
 
     const after = await snapshot(page)
     expect(after.sessions).toEqual(before.sessions)
@@ -129,7 +150,8 @@ test.describe('8.4 / 8.5 匯出 → 清除 → 匯入', () => {
     )
     // 紀錄列表顯示匯入的資料
     await openList(page)
-    await expect(rows(page)).toHaveCount(7)
+    await expect(rows(page)).toHaveCount(9)
+    await expect(page.getByTestId('row-sold-badge')).toHaveCount(2)
   })
 
   test('有資料時匯入：確認視窗並排目前與備份檔的場次數與備份時間；取消不變更', async ({ page }) => {
@@ -164,7 +186,8 @@ test.describe('8.5 匯入拒絕：四種情況都正確拒絕且原資料不變'
     { name: 'app 不符', content: () => JSON.stringify(validBackup({ app: 'other-app' })), reason: '這不是德州記帳的備份檔' },
     {
       name: 'schemaVersion 過新',
-      content: () => JSON.stringify(validBackup({ schemaVersion: 2 })),
+      // 目前版本為 2，3 為過新
+      content: () => JSON.stringify(validBackup({ schemaVersion: 3 })),
       reason: '備份檔來自較新版本的 App，請先更新 App 再匯入',
     },
     {
@@ -247,16 +270,21 @@ test('8.6 匯出 CSV：BOM、標題列、欄數正確、含逗號與換行的備
     '買入總額',
     '服務費總額',
     '到手金額',
-    '盈利',
+    '全額盈利',
+    '賣出比例',
+    '出資者付款總額',
+    '分走獎金總額',
+    '你的盈利',
+    '出資者',
     '時長（分）',
     '參賽人數',
     '名次',
     '備註',
   ])
-  for (const r of parsed) expect(r).toHaveLength(15)
+  for (const r of parsed) expect(r).toHaveLength(20)
   // 由舊到新：第一列是 7 月的 Summer Cup
   expect(parsed[1]!.slice(0, 6)).toEqual(['2026-07-04', '15', '限時 MTT', '6bet', '', 'Summer Cup'])
-  const trickyRow = parsed.find((r) => r[14] === tricky.note)
+  const trickyRow = parsed.find((r) => r[19] === tricky.note)
   expect(trickyRow).toBeTruthy()
   expect(trickyRow!.slice(0, 5)).toEqual(['2026-09-27', '20', '現金桌', '6bet', '50/100'])
   expect((await readSettings(page)).lastBackupAt).toBeUndefined()
@@ -374,5 +402,60 @@ test.describe('8.7 備份提醒', () => {
     await putRecords(page, 'sessions', [updated])
     await page.reload()
     await expect(page.getByTestId('backup-reminder')).toBeVisible()
+  })
+})
+
+test.describe('P5.5 備份 schemaVersion 1 / 2 匯入', () => {
+  test('P5.5 匯入 schemaVersion 1 的備份檔（fixture）成功，所有場次補 backers: []', async ({ page }) => {
+    const text = readFileSync(new URL('../fixtures/backup-v1.json', import.meta.url), 'utf8')
+    const v1 = JSON.parse(text)
+    await seedAll(page)
+    await openSettings(page)
+    await chooseImportFile(page, text)
+    const sheet = page.getByRole('dialog', { name: '匯入備份？' })
+    await expect(sheet.getByTestId('import-backup-count')).toHaveText('3 場')
+    await sheet.getByRole('button', { name: '匯入', exact: true }).click()
+    await expect(page.getByTestId('global-toast-text')).toHaveText('已匯入 3 場紀錄')
+    const sessions = byId(await readStore<Session>(page, 'sessions'))
+    expect(sessions).toHaveLength(3)
+    for (const s of sessions) {
+      const { backers, ...rest } = s
+      expect(backers).toEqual([])
+      expect(rest).toEqual(v1.sessions.find((x: { id: string }) => x.id === s.id))
+    }
+  })
+
+  test('P5.5 匯入 backers 不合法的 schemaVersion 2 檔案被拒，顯示第一筆有問題的位置，原資料不變', async ({ page }) => {
+    await seedAll(page, [...fixtureSessions, ...stakedSessions])
+    const before = await snapshot(page)
+    await openSettings(page)
+    const bad = validBackup({
+      sessions: [
+        ...fixtureSessions,
+        { ...stakedFixture.s14, backers: [stakedFixture.s14.backers[0]!, { name: 'B', sharePermille: 12.5, markupPermille: 1200 }] },
+      ],
+    })
+    await chooseImportFile(page, JSON.stringify(bad))
+    const sheet = page.getByRole('dialog', { name: '無法匯入' })
+    await expect(sheet.getByTestId('import-error-reason')).toHaveText('資料未通過檢查')
+    await expect(sheet.getByTestId('import-error-detail')).toHaveText(
+      `sessions 第 8 筆（id: ${stakedFixture.s14.id}）：出資者第 2 位 比例 必須是整數`,
+    )
+    await sheet.getByRole('button', { name: '確定' }).click()
+    expect(await snapshot(page)).toEqual(before)
+
+    // 缺少 backers 也拒絕
+    const missing = validBackup({
+      sessions: fixtureSessions.map((s) => {
+        const copy: Record<string, unknown> = { ...s }
+        delete copy.backers
+        return copy
+      }),
+    })
+    await chooseImportFile(page, JSON.stringify(missing))
+    await expect(sheet.getByTestId('import-error-reason')).toHaveText('資料未通過檢查')
+    await expect(sheet.getByTestId('import-error-detail')).toContainText('出資者 缺少必填欄位')
+    await sheet.getByRole('button', { name: '確定' }).click()
+    expect(await snapshot(page)).toEqual(before)
   })
 })

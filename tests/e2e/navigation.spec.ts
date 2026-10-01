@@ -67,6 +67,8 @@ test('未知路徑導回新增頁', async ({ page }) => {
 
 test('每個頁面記住自己的捲動位置', async ({ page }) => {
   await page.goto('./#/settings')
+  // v1.2：App 在資料庫開啟（含遷移）後才渲染（3.7），先等頁面出現再捲動
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText('設定')
   // 佔位頁內容不足以捲動，暫時撐高頁面來驗證
   await page.evaluate(() => document.body.style.setProperty('min-height', '5000px'))
   await page.evaluate(() => window.scrollTo(0, 800))

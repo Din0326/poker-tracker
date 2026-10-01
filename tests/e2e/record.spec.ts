@@ -216,9 +216,10 @@ test('填到一半重新載入頁面，草稿還原', async ({ page }) => {
   await expect
     .poll(async () => (await readSettings(page)).recordDraft, { timeout: 5000 })
     .toMatchObject({
-      version: 1,
+      // v1.2：草稿版本 2（含出資者列）
+      version: 2,
       type: 'mtt',
-      values: { name: '草稿測試' },
+      values: { name: '草稿測試', backers: [] },
     })
 
   await page.reload()
