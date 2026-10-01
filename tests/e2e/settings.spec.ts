@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs'
 import { expect, test, type Page } from '@playwright/test'
-import { readSettings, readStore, type StoreName } from './helpers/idb'
+import { fixtureHands } from './helpers/hands'
+import { putRecords, readSettings, readStore, type StoreName } from './helpers/idb'
 import { openRecordPage } from './helpers/record'
 import { heading, nav, openList, rows, seed } from './helpers/sessions'
 import { openSettings } from './helpers/settings'
@@ -94,7 +95,7 @@ test('8.8 資料與系統資訊：執行模式、持久儲存、資料量、上�
   await expect(page.getByTestId('info-persisted').locator('dd')).toHaveText(/^(已取得|未取得)$/)
   const persisted = await page.evaluate(async () => (navigator.storage?.persisted ? navigator.storage.persisted() : false))
   await expect(page.getByTestId('info-persisted').locator('dd')).toHaveText(persisted ? '已取得' : '未取得')
-  await expect(page.getByTestId('info-data-count').locator('dd')).toHaveText('7 場 · 2 個場地 · 2 個盲注')
+  await expect(page.getByTestId('info-data-count').locator('dd')).toHaveText('7 場 · 2 個場地 · 2 個盲注 · 手牌 0（完整 0 / 簡易 0）')
   await expect(page.getByTestId('info-last-backup').locator('dd')).toHaveText('從未備份')
   await expect(page.getByTestId('info-version').locator('dd')).toHaveText(pkg.version)
 })
@@ -132,8 +133,12 @@ test.describe('8.9 清除所有資料', () => {
     await expect(page.getByRole('dialog').getByLabel('請輸入「刪除」以確認')).toHaveValue('')
   })
 
-  test('清除後回到首次啟動狀態：四張表清空、盈虧顏色回預設、導到新增頁、提示、報表與列表為空', async ({ page }) => {
+  // v2（SPEC-v2-hands 10.6）：一併清除 hands 表與 handDraft
+  test('清除後回到首次啟動狀態：五張表（含 hands、handDraft）清空、盈虧顏色回預設、導到新增頁、提示、報表與列表為空', async ({ page }) => {
     await seed(page)
+    await putRecords(page, 'hands', fixtureHands())
+    await putRecords(page, 'settings', [{ key: 'handDraft', value: { mode: 'simple' } }])
+    expect(await readStore(page, 'hands')).toHaveLength(5)
     await page.goto('./#/settings')
     await page.getByRole('group', { name: '盈虧顏色' }).getByRole('button', { name: '綠色為贏、紅色為輸' }).click()
     await expect(page.locator('html')).toHaveAttribute('data-profit-scheme', 'greenGain')
@@ -148,7 +153,7 @@ test.describe('8.9 清除所有資料', () => {
     await expect(heading(page)).toHaveText('新增場次')
     await expect(page.getByTestId('global-toast-text')).toHaveText('已清除所有資料')
     await expect(nav(page).getByRole('link', { name: '新增' })).toHaveAttribute('aria-current', 'page')
-    for (const store of ['sessions', 'venues', 'stakes', 'settings'] as StoreName[]) {
+    for (const store of ['sessions', 'venues', 'stakes', 'hands', 'settings'] as StoreName[]) {
       await expect.poll(() => readStore(page, store), store).toEqual([])
     }
     await expect(page.locator('html')).toHaveAttribute('data-profit-scheme', 'redGain')

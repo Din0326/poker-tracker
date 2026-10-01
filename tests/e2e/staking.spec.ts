@@ -387,7 +387,7 @@ test('P5.5 E2E 遷移：以 v1 結構直接寫入 IndexedDB 後載入 App，列�
     { sessions: v1Sessions, venues, stakes, settings: v1Settings },
   )
 
-  // 載入新版 App：開啟時執行 version 1 → 2 遷移
+  // 載入新版 App：開啟時執行 version 1 → 2 → 3 遷移（v2 起新版為 version 3，SPEC-v2-hands 3.12）
   await page.goto('./#/sessions')
   await expect(heading(page)).toHaveText('紀錄')
   await expect(rows(page)).toHaveCount(7)
@@ -407,7 +407,8 @@ test('P5.5 E2E 遷移：以 v1 結構直接寫入 IndexedDB 後載入 App，列�
   expect(await readStore(page, 'venues')).toEqual(expect.arrayContaining(venues))
   expect(await readStore(page, 'stakes')).toEqual(expect.arrayContaining(stakes))
   expect(await readSettings(page)).toEqual(Object.fromEntries(v1Settings.map((r) => [r.key, r.value])))
-  // 原生版本為 20（Dexie version 2）
+  // 原生版本為 30（Dexie version 3；v1.2 時為 20），hands 表為空
+  expect(await readStore(page, 'hands')).toEqual([])
   const version = await page.evaluate(
     () =>
       new Promise<number>((resolve) => {
@@ -418,7 +419,7 @@ test('P5.5 E2E 遷移：以 v1 結構直接寫入 IndexedDB 後載入 App，列�
         }
       }),
   )
-  expect(version).toBe(20)
+  expect(version).toBe(30)
 
   // 報表總體：與遷移前（v1.1 全額口徑）相同，7 場 +$8,400；遷移不更新 updatedAt，不觸發備份提醒
   await openReport(page)

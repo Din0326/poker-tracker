@@ -66,7 +66,7 @@ async function snapshot(page: Page) {
   return out
 }
 
-// v1.2：目前備份格式為 schemaVersion 2（sessions 含 backers）
+// v1.2 的備份格式 schemaVersion 2（sessions 含 backers）；v2 起匯出為 3，2 版檔案匯入時遷移（2 → 3 補 hands: []）
 function validBackup(overrides: Record<string, unknown> = {}) {
   return {
     app: 'poker-tracker',
@@ -94,9 +94,11 @@ test.describe('8.4 / 8.5 匯出 → 清除 → 匯入', () => {
     expect(download.suggestedFilename()).toMatch(/^poker-backup-\d{8}-\d{4}\.json$/)
     await expect(page.getByTestId('global-toast-text')).toHaveText('已匯出備份')
     const backup = JSON.parse(body.toString('utf8'))
-    expect(Object.keys(backup)).toEqual(['app', 'schemaVersion', 'exportedAt', 'sessions', 'venues', 'stakes', 'settings'])
-    // schemaVersion 2，每筆 session 含 backers（沒有賣股為 []）
-    expect(backup.schemaVersion).toBe(2)
+    // v2（SPEC-v2-hands 10.1）：schemaVersion 3，頂層新增 hands（沒有手牌時為 []；含手牌的還原見 h0-hands-data.spec.ts）
+    expect(Object.keys(backup)).toEqual(['app', 'schemaVersion', 'exportedAt', 'sessions', 'venues', 'stakes', 'hands', 'settings'])
+    expect(backup.hands).toEqual([])
+    // 每筆 session 含 backers（沒有賣股為 []）
+    expect(backup.schemaVersion).toBe(3)
     for (const s of backup.sessions) expect(Array.isArray(s.backers)).toBe(true)
     expect(backup.sessions.find((s: { id: string }) => s.id === stakedFixture.s14.id).backers).toEqual(stakedFixture.s14.backers)
     expect(backup.exportedAt).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\+08:00$/)
@@ -117,7 +119,7 @@ test.describe('8.4 / 8.5 匯出 → 清除 → 匯入', () => {
     await openSettings(page)
     await clearAllData(page)
     await expect(page.getByTestId('global-toast-text')).toHaveText('已清除所有資料')
-    for (const store of ['sessions', 'venues', 'stakes', 'settings'] as StoreName[]) {
+    for (const store of ['sessions', 'venues', 'stakes', 'hands', 'settings'] as StoreName[]) {
       expect(await readStore(page, store), store).toEqual([])
     }
     await expect(page.locator('html')).toHaveAttribute('data-profit-scheme', 'redGain')
@@ -138,10 +140,11 @@ test.describe('8.4 / 8.5 匯出 → 清除 → 匯入', () => {
     expect(after.sessions).toEqual(before.sessions)
     expect(after.venues).toEqual(before.venues)
     expect(after.stakes).toEqual(before.stakes)
-    // settings：recordDraft 不還原，lastBackupAt = 備份檔的 exportedAt，其他完全相同
+    // settings：recordDraft 不還原，lastBackupAt = 備份檔的 exportedAt，其他完全相同；
+    // v2 10.2：lastHandSeq = max(檔案中的 lastHandSeq（沒有時為 0）, 檔案 hands 的最大 exportSeq) = 0
     const { recordDraft: _draft, ...rest } = before.settings as Record<string, unknown>
     void _draft
-    expect(after.settings).toEqual({ ...rest, lastBackupAt: backup.exportedAt })
+    expect(after.settings).toEqual({ ...rest, lastBackupAt: backup.exportedAt, lastHandSeq: 0 })
     // 盈虧顏色依匯入的設定重新套用
     await expect(page.locator('html')).toHaveAttribute('data-profit-scheme', 'greenGain')
     await expect(page.getByRole('group', { name: '盈虧顏色' }).getByRole('button', { name: '綠色為贏、紅色為輸' })).toHaveAttribute(
@@ -186,8 +189,8 @@ test.describe('8.5 匯入拒絕：四種情況都正確拒絕且原資料不變'
     { name: 'app 不符', content: () => JSON.stringify(validBackup({ app: 'other-app' })), reason: '這不是 Poker Road 的備份檔' },
     {
       name: 'schemaVersion 過新',
-      // 目前版本為 2，3 為過新
-      content: () => JSON.stringify(validBackup({ schemaVersion: 3 })),
+      // 目前版本為 3（v2），4 為過新
+      content: () => JSON.stringify(validBackup({ schemaVersion: 4 })),
       reason: '備份檔來自較新版本的 App，請先更新 App 再匯入',
     },
     {
