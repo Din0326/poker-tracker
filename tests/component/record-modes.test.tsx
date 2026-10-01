@@ -13,17 +13,19 @@ describe('5.6 草稿', () => {
     const cashOut = screen.getByLabelText('到手金額')
     await user.type(cashOut, '900')
     await waitFor(async () => {
+      // v1.2：草稿版本 2，含出資者列（此處 0 列）
       expect(await s.repos.settings.get('recordDraft')).toMatchObject({
-        version: 1,
+        version: 2,
         type: 'mtt',
         venueTouched: false,
-        values: { cashOut: '900' },
+        values: { cashOut: '900', backers: [] },
       })
     })
     await user.clear(cashOut)
     await waitFor(async () => expect(await s.repos.settings.get('recordDraft')).toBeUndefined())
   })
 
+  // v1.2：此處寫入的是 v1.1 格式（version 1、沒有出資者）的草稿，仍可還原（出資者視為 0 列，5.6）
   it('進頁面時還原草稿；版本不符時丟棄', async () => {
     const s = await setupDb()
     await s.repos.settings.set('recordDraft', {
@@ -54,7 +56,8 @@ describe('5.6 草稿', () => {
     expect((screen.getByLabelText('名稱') as HTMLInputElement).value).toBe('Daily')
     first.unmount()
 
-    await s.repos.settings.set('recordDraft', { version: 2, type: 'mtt', venueTouched: false, values: {} })
+    // 目前版本為 2，以未知的 99 測試版本不符
+    await s.repos.settings.set('recordDraft', { version: 99, type: 'mtt', venueTouched: false, values: {} })
     await renderRecordForm(s)
     expect(screen.getByRole('button', { name: /現金桌/ }).getAttribute('aria-pressed')).toBe('true')
   })

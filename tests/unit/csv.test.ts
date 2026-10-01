@@ -73,7 +73,13 @@ const HEADERS = [
   '買入總額',
   '服務費總額',
   '到手金額',
-  '盈利',
+  // v1.2（8.6）：原「盈利」改名「全額盈利」，其後新增 5 欄
+  '全額盈利',
+  '賣出比例',
+  '出資者付款總額',
+  '分走獎金總額',
+  '你的盈利',
+  '出資者',
   '時長（分）',
   '參賽人數',
   '名次',
@@ -147,7 +153,7 @@ describe('8.6 buildSessionsCsv', () => {
   it('一場一列，依 startAt 由舊到新（同時間依 createdAt）；每列欄數一致（含逗號與換行的備註不跑欄）', () => {
     const rows = parseCsv(csv.slice(1))
     expect(rows).toHaveLength(4)
-    for (const r of rows) expect(r).toHaveLength(15)
+    for (const r of rows) expect(r).toHaveLength(20)
     expect(rows.slice(1).map((r) => r[5])).toEqual(["'-週日賽", "'@Daily", ''])
   })
 
@@ -165,12 +171,38 @@ describe('8.6 buildSessionsCsv', () => {
       '600',
       '9000',
       '2400',
+      '0.0',
+      '0',
+      '0',
+      '2400',
+      '',
       '375',
       '180',
       '12',
       '',
     ])
-    expect(rows[2]).toEqual(['2026-09-27', '8', '限時 MTT', '', '', "'@Daily", '1', '2000', '0', '2000', '0', '60', '', '', "'+1 bullet"])
+    expect(rows[2]).toEqual([
+      '2026-09-27',
+      '8',
+      '限時 MTT',
+      '',
+      '',
+      "'@Daily",
+      '1',
+      '2000',
+      '0',
+      '2000',
+      '0',
+      '0.0',
+      '0',
+      '0',
+      '0',
+      '',
+      '60',
+      '',
+      '',
+      "'+1 bullet",
+    ])
     expect(rows[3]).toEqual([
       '2026-09-27',
       '8',
@@ -183,6 +215,11 @@ describe('8.6 buildSessionsCsv', () => {
       '300',
       '0',
       '-10000',
+      '0.0',
+      '0',
+      '0',
+      '-10000',
+      '',
       '270',
       '',
       '',
@@ -235,7 +272,7 @@ describe('escapeCsvField / neutralizeFormula', () => {
   it('注入防護後仍依 RFC 4180 跳脫（CR 開頭的備註）', () => {
     const s = makeSession({ stakeId: 's1', note: '\r=cmd' })
     const rows = parseCsv(buildSessionsCsv([s], venues, stakes).slice(1))
-    expect(rows[1]![14]).toBe("'\r=cmd")
+    expect(rows[1]![19]).toBe("'\r=cmd")
   })
 })
 

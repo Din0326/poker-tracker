@@ -52,7 +52,8 @@ describe('8.10 UpdatePrompt', () => {
     await user.click(screen.getByRole('button', { name: '重新載入' }))
     await waitFor(() => expect(events).toEqual(['update:true']))
     // 呼叫 updateServiceWorker 時，草稿已寫入 DB
-    expect(draftAtUpdate).toMatchObject({ version: 1, type: 'mtt', values: { cashOut: '900' } })
+    // v1.2：草稿版本 2
+    expect(draftAtUpdate).toMatchObject({ version: 2, type: 'mtt', values: { cashOut: '900' } })
   })
 
   it('沒有新增表單時也能更新（沒有草稿要寫）', async () => {

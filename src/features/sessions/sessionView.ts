@@ -2,6 +2,9 @@
 // 指標計算一律呼叫 src/domain，這裡只負責組合顯示文字與分組。
 import {
   entryCount,
+  formatPermille,
+  hasBackers,
+  soldPermille,
   stakeLabel,
   summarize,
   type Session,
@@ -61,6 +64,14 @@ export function entriesBadge(s: Session): string | null {
   return n >= 2 ? strings.sessions.entriesBadge(n) : null
 }
 
+/**
+ * 有出資者的場次（三種類型）的小標籤 `賣30%`（7.1）：賣出比例合計，格式見 4.4；
+ * 提示該列盈利是你的份額。沒有出資者時回傳 null
+ */
+export function soldBadge(s: Pick<Session, 'backers'>): string | null {
+  return hasBackers(s) ? strings.sessions.soldBadge(formatPermille(soldPermille(s.backers))) : null
+}
+
 /** 單列日期 `09/27`（startAt 的本地日期） */
 export function rowDate(s: Pick<Session, 'startAt'>): string {
   return strings.sessions.rowDate(s.startAt.slice(5, 7), s.startAt.slice(8, 10))
@@ -75,7 +86,7 @@ export interface MonthGroup {
   sessions: Session[]
   /** 該月（符合篩選的）場次數 */
   count: number
-  /** 該月（符合篩選的）盈利總和 */
+  /** 該月（符合篩選的）盈利總和（Σ 你的盈利，7.1） */
   profit: number
 }
 

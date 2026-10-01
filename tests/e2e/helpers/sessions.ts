@@ -1,5 +1,5 @@
 import { expect, type Page } from '@playwright/test'
-import type { Session, Stake, Venue } from '../../../src/domain/types'
+import type { Backer, Session, Stake, Venue } from '../../../src/domain/types'
 import { putRecords } from './idb'
 import { openRecordPage } from './record'
 
@@ -29,6 +29,7 @@ const base = {
   note: null,
   fieldSize: null,
   finishPlace: null,
+  backers: [] as Backer[],
 } as const
 
 function ts(value: string): { createdAt: string; updatedAt: string } {
@@ -137,6 +138,45 @@ export const fixture = {
 } satisfies Record<string, Session>
 
 export const fixtureSessions: Session[] = Object.values(fixture)
+
+/**
+ * v1.2 賣股份的固定資料（加在 fixtureSessions 之外）
+ * - s14：C14 場次（MTT 買入 10,000、到手 50,000、A 10% ×1.2、B 20% ×1.2）→ 你的盈利 +28,600、全額 +40,000
+ * - s23：C23 場次（現金桌 50/100 買入 10,000、到手 14,000、2 小時、A 50% ×1.0）→ 你的盈利 +2,000
+ */
+export const stakedFixture = {
+  s14: {
+    ...base,
+    id: uuid(0x51),
+    type: 'mtt',
+    startAt: '2026-09-20T19:00',
+    durationMin: 300,
+    buyIns: [{ amount: 10000, fee: 0 }],
+    cashOut: 50000,
+    venueId: V_6BET,
+    name: 'Staked Cup',
+    backers: [
+      { name: 'A', sharePermille: 100, markupPermille: 1200 },
+      { name: 'B', sharePermille: 200, markupPermille: 1200 },
+    ],
+    ...ts('2026-09-21T01:00:00+08:00'),
+  },
+  s23: {
+    ...base,
+    id: uuid(0x52),
+    type: 'cash',
+    startAt: '2026-09-21T20:00',
+    durationMin: 120,
+    buyIns: [{ amount: 10000, fee: 0 }],
+    cashOut: 14000,
+    stakeId: S_50,
+    venueId: V_6BET,
+    backers: [{ name: 'A', sharePermille: 500, markupPermille: 1000 }],
+    ...ts('2026-09-21T23:00:00+08:00'),
+  },
+} satisfies Record<string, Session>
+
+export const stakedSessions: Session[] = Object.values(stakedFixture)
 export const fixtureOrder = ['c2', 'c1', 'm1', 't1', 'a1', 'a2', 'old1'].map(
   (k) => fixture[k as keyof typeof fixture].id,
 )

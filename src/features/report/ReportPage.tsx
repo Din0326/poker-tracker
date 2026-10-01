@@ -30,6 +30,7 @@ import {
   buildMetricCards,
   buildTypeBreakdown,
   filterByTab,
+  hasStakedSessions,
   tabLabel,
   type MetricCard,
   type ReportTab,
@@ -158,6 +159,7 @@ export function ReportPage() {
   )
   const breakdown = useMemo(() => (tab === 'all' ? buildTypeBreakdown(inPeriod) : []), [tab, inPeriod])
   const curve = useMemo(() => buildCurve(sessions), [sessions])
+  const staked = useMemo(() => hasStakedSessions(sessions), [sessions])
   const groups = useMemo(
     () => (lookup ? buildGroups(sessions, tab, groupBy, lookup, lookup.stakes) : []),
     [sessions, tab, groupBy, lookup],
@@ -223,6 +225,12 @@ export function ReportPage() {
         </div>
 
         <MetricCards cards={cards} />
+        {/* 6 節：有賣股場次時的口徑說明；報表不提供全額 / 份額切換 */}
+        {staked && (
+          <p data-testid="staking-note" className="mt-2 px-1 text-xs text-(--color-text-muted)">
+            {t.stakingNote}
+          </p>
+        )}
         {tab === 'all' && <TypeBreakdown rows={breakdown} onSelect={selectTab} />}
 
         <section aria-labelledby="rp-curve-title" className="mt-6">

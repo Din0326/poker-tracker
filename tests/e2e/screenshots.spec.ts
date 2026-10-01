@@ -4,7 +4,18 @@ import { generateSeedData } from '../../src/dev/seed'
 import { putRecords } from './helpers/idb'
 import { groupByButton, manySessions, openReport, reportTab } from './helpers/report'
 import { chooseImportFile, openActions } from './helpers/settings'
-import { V_6BET, fixture, fixtureSessions, openDetail, openList, seed, stakes, venues } from './helpers/sessions'
+import {
+  V_6BET,
+  fixture,
+  fixtureSessions,
+  openDetail,
+  openList,
+  seed,
+  stakedFixture,
+  stakedSessions,
+  stakes,
+  venues,
+} from './helpers/sessions'
 import {
   addStakeInline,
   addVenueInline,
@@ -460,7 +471,150 @@ const settingsStates: { name: string; setup: (page: Page) => Promise<void> }[] =
   },
 ]
 
+// P5.5 賣股份：新增頁區塊（收合、展開含名稱建議、驗證錯誤、兩行預覽）、列表標籤、詳情、刪除確認、報表小字與 tooltip
+const stakedData = { venues, stakes, sessions: [...fixtureSessions, ...stakedSessions] }
+
+/** 新增一列出資者 */
+async function addBacker(page: Page, name: string, share: string, markup?: string) {
+  await page.getByRole('button', { name: /^＋ (賣股份|新增出資者)$/ }).click()
+  const row = page.getByTestId('backer-row').last()
+  if (name !== '') await row.getByLabel('出資者名稱', { exact: true }).fill(name)
+  if (share !== '') await row.getByLabel('比例', { exact: true }).fill(share)
+  if (markup !== undefined) await row.getByLabel('加價倍數', { exact: true }).fill(markup)
+}
+
+/** 把賣股份區塊捲到標題列下方 */
+async function scrollToStaking(page: Page, offset = 140) {
+  await page
+    .getByTestId('staking-section')
+    .evaluate((el, off) => window.scrollTo(0, el.getBoundingClientRect().top + window.scrollY - off), offset)
+}
+
+/** 新增頁：寫入有出資者的歷史資料（名稱建議來源）後重新進入，切到 MTT 並填買入、到手 */
+async function openStakingForm(page: Page) {
+  await seed(page, stakedData)
+  await page.goto('./')
+  await page.getByRole('button', { name: '儲存', exact: true }).waitFor()
+  await dismissInstallBanner(page)
+  await typeButton(page, 'MTT').click()
+  await buyInInput(page, 1).fill('10000')
+  await page.getByLabel('到手金額').fill('50000')
+}
+
+const stakingStates: { name: string; setup: (page: Page) => Promise<void> }[] = [
+  {
+    name: 'staking-collapsed',
+    setup: async (page) => {
+      await openStakingForm(page)
+      await scrollToStaking(page, 260)
+    },
+  },
+  {
+    name: 'staking-expanded-suggestions',
+    setup: async (page) => {
+      await openStakingForm(page)
+      await addBacker(page, 'A', '10', '1.2')
+      await page.getByRole('button', { name: '＋ 新增出資者' }).click()
+      await scrollToStaking(page, 100)
+      await page.getByTestId('backer-row').last().getByLabel('出資者名稱', { exact: true }).focus()
+      await page.getByTestId('backer-suggestions').waitFor()
+      // 清單出現後 App 會把整列捲到固定列之上，等捲動完成
+      await page.waitForTimeout(450)
+    },
+  },
+  {
+    name: 'staking-preview-two-lines',
+    setup: async (page) => {
+      await openStakingForm(page)
+      await addBacker(page, 'A', '10')
+      await addBacker(page, 'B', '20')
+      await page.locator('body').click({ position: { x: 5, y: 5 } })
+      await scrollToStaking(page, 100)
+    },
+  },
+  {
+    name: 'staking-errors',
+    setup: async (page) => {
+      await openStakingForm(page)
+      await setDuration(page, 2, 0)
+      await addBacker(page, 'A', '60', '0.9')
+      await addBacker(page, 'a', '45.5')
+      await saveButton(page).click()
+      await page.getByText('賣出比例合計不可超過 100%（目前 105.5%）').waitFor()
+      await scrollToStaking(page, 100)
+    },
+  },
+  {
+    name: 'sessions-list-staked',
+    setup: async (page) => {
+      await seed(page, stakedData)
+      await openList(page)
+      await page.getByTestId('row-sold-badge').first().waitFor()
+    },
+  },
+  {
+    name: 'detail-staked',
+    setup: async (page) => {
+      await seed(page, stakedData)
+      await openList(page)
+      await openDetail(page, stakedFixture.s14.id)
+    },
+  },
+  {
+    name: 'detail-staked-section',
+    setup: async (page) => {
+      await seed(page, stakedData)
+      await openList(page)
+      await openDetail(page, stakedFixture.s14.id)
+      await page
+        .getByTestId('detail-staking')
+        .evaluate((el) => window.scrollTo(0, el.getBoundingClientRect().top + window.scrollY - 60))
+    },
+  },
+  {
+    name: 'delete-confirm-staked',
+    setup: async (page) => {
+      await seed(page, stakedData)
+      await openList(page)
+      await openDetail(page, stakedFixture.s14.id)
+      await page.getByRole('button', { name: '刪除' }).click()
+      await page.getByRole('dialog', { name: '刪除這筆紀錄？' }).waitFor()
+    },
+  },
+  {
+    name: 'report-staked-note',
+    setup: async (page) => {
+      await seed(page, stakedData)
+      await openReport(page)
+      await page.getByTestId('staking-note').waitFor()
+      await page.getByTestId('staking-note').evaluate((el) => window.scrollTo(0, el.getBoundingClientRect().top + window.scrollY - 420))
+    },
+  },
+  {
+    name: 'report-staked-tooltip',
+    setup: async (page) => {
+      await seed(page, stakedData)
+      await openReport(page)
+      await reportTab(page, 'MTT').click()
+      await scrollToHeading(page, '累積盈利曲線')
+      // MTT 頁籤由舊到新：a2、m1、s14（有出資者）→ 點第 3 個資料點
+      const dot = page.locator('[data-testid="profit-curve"] .recharts-line-dots circle').nth(2)
+      const box = (await dot.boundingBox())!
+      await page.touchscreen.tap(box.x + box.width / 2, box.y + box.height / 2)
+      await page.getByTestId('tooltip-sold').waitFor()
+    },
+  },
+]
+
 for (const scheme of ['dark', 'light'] as const) {
+  for (const state of stakingStates) {
+    test(`截圖 ${state.name}-${scheme}`, async ({ page }) => {
+      await page.emulateMedia({ colorScheme: scheme, reducedMotion: 'reduce' })
+      await state.setup(page)
+      await page.screenshot({ path: `${outDir}/${state.name}-${scheme}.png` })
+    })
+  }
+
   for (const state of reportStates) {
     test(`截圖 ${state.name}-${scheme}`, async ({ page }) => {
       await page.emulateMedia({ colorScheme: scheme, reducedMotion: 'reduce' })

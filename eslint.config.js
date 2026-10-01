@@ -11,7 +11,7 @@ const devImportRestriction = {
 }
 
 export default tseslint.config(
-  { ignores: ['dist', 'dev-dist', 'test-results', 'playwright-report'] },
+  { ignores: ['dist', 'dev-dist', 'test-results', 'playwright-report', '.claude/**'] },
   {
     files: ['**/*.{ts,tsx}'],
     extends: [js.configs.recommended, ...tseslint.configs.recommended],

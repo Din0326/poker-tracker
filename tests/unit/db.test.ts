@@ -6,8 +6,10 @@ import {
   DuplicateStakeError,
   InUseError,
   RecordNotFoundError,
+  DB_VERSION,
   ReferenceNotFoundError,
   SCHEMA_V1,
+  SCHEMA_V2,
   TypeImmutableError,
   ValidationError,
   createDb,
@@ -35,7 +37,7 @@ afterEach(async () => {
 const ISO_WITH_OFFSET = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}[+-]\d{2}:\d{2}$/
 
 describe('3.7 Dexie schema', () => {
-  it('version(1) 的 stores 完全等於規格 3.7', async () => {
+  it('version(1) 的 stores 完全等於規格 3.7；version(2) 的 stores 與 v1 相同', async () => {
     const { db } = setup()
     expect(SCHEMA_V1).toEqual({
       sessions: 'id, type, startAt, venueId, stakeId',
@@ -43,7 +45,10 @@ describe('3.7 Dexie schema', () => {
       stakes: 'id, archived',
       settings: 'key',
     })
-    expect(db.verno).toBe(1)
+    // v1.2：DB_VERSION 由 1 改為 2，stores 定義不變（3.7）
+    expect(SCHEMA_V2).toEqual(SCHEMA_V1)
+    expect(DB_VERSION).toBe(2)
+    expect(db.verno).toBe(2)
     const actual = Object.fromEntries(
       db.tables.map((t) => [t.name, [t.schema.primKey.src, ...t.schema.indexes.map((i) => i.src)].join(', ')]),
     )

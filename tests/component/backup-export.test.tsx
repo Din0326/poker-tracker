@@ -159,7 +159,8 @@ describe('8.4 匯出 JSON：分享選單', () => {
     const file = shared[0]!
     expect(file.name).toMatch(/^poker-backup-\d{8}-\d{4}\.json$/)
     const backup = JSON.parse(await file.text())
-    expect(backup).toMatchObject({ app: 'poker-tracker', schemaVersion: 1 })
+    // v1.2：備份 schemaVersion 2
+    expect(backup).toMatchObject({ app: 'poker-tracker', schemaVersion: 2 })
     expect(backup.venues).toHaveLength(1)
     expect(backup.stakes).toHaveLength(1)
     expect(await s.repos.settings.get('lastBackupAt')).toBe(backup.exportedAt)

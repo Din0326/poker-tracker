@@ -1,0 +1,61 @@
+{
+  "app": "poker-tracker",
+  "schemaVersion": 1,
+  "exportedAt": "2026-09-28T21:05:00+08:00",
+  "sessions": [
+    {
+      "id": "00000000-0000-4000-8000-000000000a01",
+      "type": "cash",
+      "startAt": "2026-09-27T20:00",
+      "durationMin": 270,
+      "buyIns": [{ "amount": 10000, "fee": 300 }],
+      "cashOut": 12000,
+      "stakeId": "00000000-0000-4000-8000-000000000c01",
+      "venueId": "00000000-0000-4000-8000-000000000b01",
+      "name": null,
+      "note": "v1 備份",
+      "fieldSize": null,
+      "finishPlace": null,
+      "createdAt": "2026-09-28T02:00:00+08:00",
+      "updatedAt": "2026-09-28T02:00:00+08:00"
+    },
+    {
+      "id": "00000000-0000-4000-8000-000000000a02",
+      "type": "mtt",
+      "startAt": "2026-09-14T13:00",
+      "durationMin": 375,
+      "buyIns": [
+        { "amount": 3400, "fee": 400 },
+        { "amount": 3200, "fee": 200 }
+      ],
+      "cashOut": 9000,
+      "stakeId": null,
+      "venueId": "00000000-0000-4000-8000-000000000b01",
+      "name": "週日賽",
+      "note": null,
+      "fieldSize": 180,
+      "finishPlace": 12,
+      "createdAt": "2026-09-14T20:00:00+08:00",
+      "updatedAt": "2026-09-14T20:00:00+08:00"
+    },
+    {
+      "id": "00000000-0000-4000-8000-000000000a03",
+      "type": "timed_mtt",
+      "startAt": "2026-09-01T19:00",
+      "durationMin": 90,
+      "buyIns": [{ "amount": 2000, "fee": 0 }],
+      "cashOut": 0,
+      "stakeId": null,
+      "venueId": null,
+      "name": null,
+      "note": null,
+      "fieldSize": null,
+      "finishPlace": null,
+      "createdAt": "2026-09-01T21:00:00+08:00",
+      "updatedAt": "2026-09-01T21:00:00+08:00"
+    }
+  ],
+  "venues": [{ "id": "00000000-0000-4000-8000-000000000b01", "name": "6bet", "archived": false, "sortOrder": 0 }],
+  "stakes": [{ "id": "00000000-0000-4000-8000-000000000c01", "sb": 50, "bb": 100, "archived": false, "sortOrder": 0 }],
+  "settings": { "lastType": "cash", "profitColorScheme": "redGain" }
+}

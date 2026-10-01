@@ -1,6 +1,6 @@
 // 7.4 複製為新紀錄（純函式）：把來源場次轉成新增頁的預填值，寫成草稿（5.6）後由新增頁照既有邏輯還原。
 import type { Session, Stake, Venue } from '../../domain'
-import { localDate, toDraft, type RecordDraftData, type RecordFormValues } from '../record/formModel'
+import { backersToValues, localDate, toDraft, type RecordDraftData, type RecordFormValues } from '../record/formModel'
 
 /** 只預填未封存且存在的場地 / 盲注；已封存或不存在時留空（7.4、R3） */
 function activeOrEmpty(id: string | null, items: readonly { id: string; archived: boolean }[]): string {
@@ -9,7 +9,7 @@ function activeOrEmpty(id: string | null, items: readonly { id: string; archived
 }
 
 /**
- * 預填：類型、場地、盲注、名稱、全部買入列；開始時間為現在（今天、目前小時）；
+ * 預填：類型、場地、盲注、名稱、全部買入列、全部出資者列（名稱、比例、倍數；區塊因有列而展開，7.4、Q16）；開始時間為現在（今天、目前小時）；
  * 到手金額、時長、參賽人數、名次、備註留空。服務費 0 顯示為空白（留空視為 0），與編輯模式一致。
  */
 export function sessionToCopyValues(
@@ -35,6 +35,7 @@ export function sessionToCopyValues(
     venueId: activeOrEmpty(s.venueId, venues),
     name: s.name ?? '',
     note: '',
+    backers: backersToValues(s.backers),
   }
 }
 

@@ -12,6 +12,7 @@ import {
   validateBackup,
   type BackupError,
   type BackupFile,
+  type Backer,
   type Session,
   type Stake,
   type Venue,
@@ -42,6 +43,7 @@ const baseSession = {
   note: null,
   fieldSize: null,
   finishPlace: null,
+  backers: [] as Backer[],
   createdAt: TS,
   updatedAt: TS,
 } as const
@@ -127,7 +129,9 @@ describe('8.4 buildBackup', () => {
     const b = validBackup()
     expect(Object.keys(b)).toEqual(['app', 'schemaVersion', 'exportedAt', 'sessions', 'venues', 'stakes', 'settings'])
     expect(b.app).toBe('poker-tracker')
-    expect(b.schemaVersion).toBe(1)
+    // v1.2 起為 2（8.4）；每筆 session 都含 backers 陣列
+    expect(b.schemaVersion).toBe(2)
+    for (const s of b.sessions) expect(Array.isArray(s.backers)).toBe(true)
     expect(b.exportedAt).toMatch(/^2026-09-28T21:05:42[+-]\d{2}:\d{2}$/)
     expect(b.settings).toEqual({
       lastType: 'cash',
@@ -169,10 +173,11 @@ describe('8.4 backupFileName', () => {
 })
 
 describe('8.5 migrateBackup', () => {
-  it('v1 直通：內容不變', () => {
+  // v1.2：目前版本為 2，已是目前版本的資料直通不變（原「v1 直通」改為 v2；1 → 2 的遷移另見 staking-backup.test.ts）
+  it('v2 直通：內容不變', () => {
     const data = { ...validBackup() } as unknown as Record<string, unknown> & { schemaVersion: number }
     expect(migrateBackup(data)).toEqual(data)
-    expect(CURRENT_SCHEMA_VERSION).toBe(1)
+    expect(CURRENT_SCHEMA_VERSION).toBe(2)
   })
 
   it('依版本逐步升級（框架）：v1 → v2 → v3', () => {
@@ -217,7 +222,8 @@ describe('8.5 驗證：檔案層級（依檢查順序）', () => {
   })
 
   it('schemaVersion 大於目前版本（過新）', () => {
-    expectError(mutate((d) => (d.schemaVersion = 2)), { code: 'schemaTooNew' })
+    // 目前版本為 2（v1.2），3 為過新
+    expectError(mutate((d) => (d.schemaVersion = 3)), { code: 'schemaTooNew' })
   })
 
   it('檢查順序：app 錯誤優先於版本錯誤；版本過新優先於資料錯誤', () => {

@@ -11,7 +11,7 @@ import {
   type TooltipContentProps,
   type TooltipValueType,
 } from 'recharts'
-import { formatSignedMoney } from '../../domain'
+import { formatPermille, formatSignedMoney } from '../../domain'
 import { strings } from '../../strings'
 import { profitColorClass } from '../sessions/sessionView'
 import { MAX_DOTS, MIN_CURVE_POINTS, signed, type CurvePoint } from './reportModel'
@@ -36,7 +36,14 @@ function CurveTooltip({ active, payload }: TooltipContentProps<TooltipValueType,
       </p>
       <p data-testid="tooltip-profit" className="mt-1 flex justify-between gap-4">
         <span className="text-(--color-text-muted)">{t.sessionProfit}</span>
-        <span className={`font-semibold ${profitColorClass(p.tone)}`}>{p.text}</span>
+        <span>
+          <span className={`font-semibold ${profitColorClass(p.tone)}`}>{p.text}</span>
+          {point.soldPermille !== null && (
+            <span data-testid="tooltip-sold" className="text-(--color-text-muted)">
+              {t.soldSuffix(formatPermille(point.soldPermille))}
+            </span>
+          )}
+        </span>
       </p>
       <p data-testid="tooltip-cumulative" className="flex justify-between gap-4">
         <span className="text-(--color-text-muted)">{t.cumulative}</span>

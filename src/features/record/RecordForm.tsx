@@ -21,9 +21,12 @@ import {
   MAX_NOTE_LENGTH,
   SESSION_TYPES,
   charCount,
+  backerNameHistory,
   formatMoney,
+  formatPermille,
   formatSignedMoney,
-  profit,
+  hasBackers,
+  myProfit,
   stakeLabel,
   type Session,
   type SessionType,
@@ -37,7 +40,9 @@ import { OBSCURES_BOTTOM_ATTR, useKeepFocusedVisible } from '../../lib/viewport'
 import { strings } from '../../strings'
 import { AddStakeSheet } from './AddStakeSheet'
 import { AddVenueSheet } from './AddVenueSheet'
+import { StakingSection } from './StakingSection'
 import {
+  BACKERS_TOTAL_ERROR_KEY,
   DURATION_HOURS,
   DURATION_MINUTES,
   START_HOURS,
@@ -139,7 +144,7 @@ export function RecordForm({ mode, data, initialSession, onDirtyChange, onSaved,
   // 5.4：按儲存時驗證；已顯示錯誤的欄位修改後即時重驗（reValidateMode: onChange）
   const resolver: Resolver<RecordFormValues> = (values, context, options) =>
     zodResolver(createRecordSchema(nowRef.current()))(values, context, options)
-  const { control, handleSubmit, getValues, setValue, reset, clearErrors, formState } = useForm<RecordFormValues>({
+  const { control, handleSubmit, getValues, setValue, reset, clearErrors, trigger, formState } = useForm<RecordFormValues>({
     defaultValues: init.values,
     resolver,
     mode: 'onSubmit',
@@ -148,14 +153,34 @@ export function RecordForm({ mode, data, initialSession, onDirtyChange, onSaved,
   })
   const { errors, isSubmitted, submitCount } = formState
   const buyInArray = useFieldArray({ control, name: 'buyIns' })
+  const backerArray = useFieldArray({ control, name: 'backers' })
   useWatch({ control })
   const values = getValues()
   const valuesKey = JSON.stringify(values)
   const dirty = !valuesEqual(values, baseline)
   const tournament = isTournament(values.type)
   const preview = computePreview(values)
+  const staked = preview.backerRows > 0
 
   useKeepFocusedVisible(formRef)
+
+  // ---- 5.3 出資者名稱建議：名稱輸入框第一次聚焦時才讀取全部場次（不拖慢新增頁開啟），儲存新場次後重新讀取 ----
+  const [nameHistory, setNameHistory] = useState<string[] | null>(null)
+  const historyLoading = useRef(false)
+  const requestNameHistory = () => {
+    if (nameHistory !== null || historyLoading.current) return
+    historyLoading.current = true
+    repos.sessions.list().then(
+      (sessions) => setNameHistory(backerNameHistory(sessions)),
+      () => setNameHistory([]),
+    ).finally(() => {
+      historyLoading.current = false
+    })
+  }
+  // 已按過儲存時，出資者列數改變後重新驗證出資者與比例合計（5.4 即時重新驗證）
+  const revalidateBackers = () => {
+    if (isSubmitted) void trigger(['backers', BACKERS_TOTAL_ERROR_KEY as 'backers'])
+  }
 
   useEffect(() => {
     onDirtyChange?.(dirty)
@@ -313,7 +338,10 @@ export function RecordForm({ mode, data, initialSession, onDirtyChange, onSaved,
         setBaseline(next)
         setVenueTouched(false)
         reset(next)
-        showToast('success', t.saved(formatSignedMoney(profit(session))))
+        // 有出資者時提示你的盈利（5.5）
+        const savedText = formatSignedMoney(myProfit(session))
+        showToast('success', hasBackers(session) ? t.savedMine(savedText) : t.saved(savedText))
+        setNameHistory(null)
         onSaved?.(session)
       }
     } catch {
@@ -845,12 +873,26 @@ export function RecordForm({ mode, data, initialSession, onDirtyChange, onSaved,
     </div>
   )
 
-  // 5.2 欄位順序
+  const stakingField = (
+    <StakingSection
+      control={control}
+      values={values}
+      errors={errors}
+      fieldArray={backerArray}
+      setValue={setValue}
+      revalidate={revalidateBackers}
+      nameHistory={nameHistory}
+      requestNameHistory={requestNameHistory}
+    />
+  )
+
+  // 5.2 欄位順序（賣股份緊接在到手金額之後）
   const fieldNodes = {
     stake: stakeField,
     cashBuyIn: cashBuyInField,
     buyInList: buyInListField,
     cashOut: cashOutField,
+    staking: stakingField,
     place: placeField,
     startAt: startAtField,
     duration: durationField,
@@ -859,9 +901,9 @@ export function RecordForm({ mode, data, initialSession, onDirtyChange, onSaved,
     note: noteField,
   } satisfies Record<string, ReactNode>
   const fieldsByType: Record<SessionType, (keyof typeof fieldNodes)[]> = {
-    cash: ['stake', 'cashBuyIn', 'cashOut', 'startAt', 'duration', 'venue', 'name', 'note'],
-    mtt: ['buyInList', 'cashOut', 'place', 'startAt', 'duration', 'venue', 'name', 'note'],
-    timed_mtt: ['buyInList', 'cashOut', 'startAt', 'duration', 'venue', 'name', 'note'],
+    cash: ['stake', 'cashBuyIn', 'cashOut', 'staking', 'startAt', 'duration', 'venue', 'name', 'note'],
+    mtt: ['buyInList', 'cashOut', 'staking', 'place', 'startAt', 'duration', 'venue', 'name', 'note'],
+    timed_mtt: ['buyInList', 'cashOut', 'staking', 'startAt', 'duration', 'venue', 'name', 'note'],
   }
 
   const empty = strings.format.empty
@@ -891,23 +933,38 @@ export function RecordForm({ mode, data, initialSession, onDirtyChange, onSaved,
           className="fixed inset-x-0 z-20 border-t border-(--color-border) bg-(--color-surface) bottom-[calc(var(--tab-bar-height)+env(safe-area-inset-bottom))]"
         >
           <div className="mx-auto max-w-(--page-max-width) px-4 py-2">
-            <p data-testid="record-preview" className="num text-center text-sm">
-              <span>
-                {p.buyIn} {preview.buyInTotal === null ? empty : formatMoney(preview.buyInTotal)}
-                {tournament ? p.entries(preview.entries) : ''}
-              </span>
-              {tournament ? p.separatorAfterParen : p.separator}
-              <span>
-                {p.fee} {preview.feeTotal === null ? empty : formatMoney(preview.feeTotal)}
-              </span>
-              {p.separator}
-              <span>
-                {p.profit}{' '}
-                <span className={`font-semibold ${profitClass(preview.profit)}`}>
-                  {formatSignedMoney(preview.profit)}
+            {/* 沒有出資者列時一行（與 v1.1 相同）；有出資者列時兩行：第一行全額盈利，第二行賣出比例與你的盈利（5.2） */}
+            <div data-testid="record-preview" data-lines={staked ? 2 : 1} className="num text-center text-sm">
+              <p data-testid="record-preview-line1">
+                <span>
+                  {p.buyIn} {preview.buyInTotal === null ? empty : formatMoney(preview.buyInTotal)}
+                  {tournament ? p.entries(preview.entries) : ''}
                 </span>
-              </span>
-            </p>
+                {tournament ? p.separatorAfterParen : p.separator}
+                <span>
+                  {p.fee} {preview.feeTotal === null ? empty : formatMoney(preview.feeTotal)}
+                </span>
+                {p.separator}
+                <span>
+                  {staked ? p.full : p.profit}{' '}
+                  <span className={`font-semibold ${profitClass(preview.profit)}`}>
+                    {formatSignedMoney(preview.profit)}
+                  </span>
+                </span>
+              </p>
+              {staked && (
+                <p data-testid="record-preview-line2">
+                  <span>{p.sold(formatPermille(preview.soldPermille))}</span>
+                  {p.separator}
+                  <span>
+                    {p.myProfit}{' '}
+                    <span className={`font-semibold ${profitClass(preview.myProfit)}`}>
+                      {formatSignedMoney(preview.myProfit)}
+                    </span>
+                  </span>
+                </p>
+              )}
+            </div>
             <button
               type="submit"
               disabled={saving}

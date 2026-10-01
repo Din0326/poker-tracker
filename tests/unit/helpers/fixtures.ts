@@ -29,6 +29,7 @@ export function makeSession(overrides: Partial<Session> & { type?: SessionType }
     note: null,
     fieldSize: null,
     finishPlace: null,
+    backers: [],
     createdAt: TS,
     updatedAt: TS,
     ...overrides,

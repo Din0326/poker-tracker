@@ -2,20 +2,32 @@ import { ChevronRight } from 'lucide-react'
 import { memo, useEffect, useRef, useState, type MouseEvent } from 'react'
 import { useHref, useNavigate } from 'react-router'
 import { sessionTypeIcons } from '../../components/sessionTypeIcons'
-import { formatSignedMoney, profit, type Session } from '../../domain'
+import { formatSignedMoney, myProfit, type Session } from '../../domain'
 import { strings } from '../../strings'
 import { SESSIONS_PATH } from './listUrl'
-import { entriesBadge, profitColorClass, rowDate, sessionTitle, type MonthGroup, type RefLookup } from './sessionView'
+import {
+  entriesBadge,
+  profitColorClass,
+  rowDate,
+  sessionTitle,
+  soldBadge,
+  type MonthGroup,
+  type RefLookup,
+} from './sessionView'
 
 const t = strings.sessions
 
 type RowProps = { session: Session; lookup: RefLookup; hrefBase: string }
 
-// 單列（7.1）：類型圖示、日期、標題（錦標賽進場 ≥ 2 加 ×N）、盈利、箭頭
+const badgeClass = 'num shrink-0 rounded-full border border-(--color-border) px-1.5 text-xs text-(--color-text-muted)'
+
+// 單列（7.1）：類型圖示、日期、標題（錦標賽進場 ≥ 2 加 ×N；有出資者加 賣30%，排在 ×N 之後）、盈利（你的盈利）、箭頭。
+// 標題過長時標題文字省略，標籤不省略（shrink-0）
 const SessionRow = memo(function SessionRow({ session, lookup, hrefBase }: RowProps) {
   const Icon = sessionTypeIcons[session.type]
-  const p = profit(session)
+  const p = myProfit(session)
   const badge = entriesBadge(session)
+  const sold = soldBadge(session)
   return (
     // content-visibility: auto：畫面外的列不做版面計算與繪製，載入下一批時只需處理進入畫面的列。
     // 預估高度等於實際內容高度 56px（contain-intrinsic-size 不含分隔線 border），返回列表時捲動位置才還原得準
@@ -37,15 +49,16 @@ const SessionRow = memo(function SessionRow({ session, lookup, hrefBase }: RowPr
           </span>
           {badge && (
             <>
-              <span
-                aria-hidden="true"
-                data-testid="row-badge"
-                className="num shrink-0 rounded-full border border-(--color-border) px-1.5 text-xs text-(--color-text-muted)"
-              >
+              <span aria-hidden="true" data-testid="row-badge" className={badgeClass}>
                 {badge}
               </span>
               <span className="sr-only">{t.entriesBadgeLabel(session.buyIns.length)}</span>
             </>
+          )}
+          {sold && (
+            <span data-testid="row-sold-badge" className={badgeClass}>
+              {sold}
+            </span>
           )}
         </span>
         <span data-testid="row-profit" className={`num shrink-0 font-semibold ${profitColorClass(p)}`}>

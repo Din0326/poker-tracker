@@ -68,6 +68,8 @@ export const strings = {
     save: '儲存',
     saving: '儲存中…',
     saved: (profit: string) => `已儲存，盈利 ${profit}`,
+    /** 有出資者時（5.5） */
+    savedMine: (profit: string) => `已儲存，你的盈利 ${profit}`,
     saveFailed: '儲存失敗，請再試一次',
     preview: {
       buyIn: '買入',
@@ -77,6 +79,34 @@ export const strings = {
       separator: ' · ',
       /** 全形括號後不再加空白：「（2 次）· 服務費」 */
       separatorAfterParen: '· ',
+      /** 有出資者列時第一行的全額盈利「全額 +$40,000」 */
+      full: '全額',
+      /** 有出資者列時第二行「賣出 30% · 你的盈利 +$28,000」 */
+      sold: (percent: string) => `賣出 ${percent}`,
+      myProfit: '你的盈利',
+    },
+    // 5.3 賣股份區塊（v1.2）
+    staking: {
+      title: '賣股份',
+      add: '＋ 賣股份',
+      skipHint: '沒有賣股可略過',
+      addBacker: '＋ 新增出資者',
+      /** 展開時標題列右側摘要「已賣 30% · 你佔 70%」 */
+      summary: (sold: string, mine: string) => `已賣 ${sold} · 你佔 ${mine}`,
+      listLabel: '出資者列表',
+      rowLabel: (n: number) => `出資者 ${n}`,
+      name: '出資者名稱',
+      namePlaceholder: '出資者名稱',
+      share: '比例',
+      markup: '加價倍數',
+      percentSuffix: '%',
+      markupPrefix: '×',
+      remove: '刪除出資者',
+      /** 每列第三行「付你 $1,000 · 分走 $5,000」 */
+      rowAmounts: (pay: string, payout: string) => `付你 ${pay} · 分走 ${payout}`,
+      suggestionsLabel: '出資者名稱建議',
+      /** 新增列的加價倍數預填值 */
+      defaultMarkup: '1.0',
     },
     // 5.4 驗證錯誤訊息
     errors: {
@@ -92,6 +122,18 @@ export const strings = {
       finishPlaceNeedsFieldSize: '填名次時請一併填寫參賽人數',
       finishPlaceRange: '名次需介於 1 到參賽人數之間',
       textTooLong: '字數超過上限',
+      // 5.4 出資者規則（v1.2）
+      backerNameRequired: '請填寫出資者名稱',
+      backerNameTooLong: '出資者名稱最多 20 字',
+      backerNameDuplicate: '出資者名稱重複',
+      shareRequired: '請填寫比例',
+      shareFormat: '比例最多到小數 1 位',
+      shareRange: '比例需介於 0.1% 到 100% 之間',
+      /** 錯誤顯示在賣股份區塊標題下方；目前合計依 4.4 比例格式 */
+      shareTotal: (current: string) => `賣出比例合計不可超過 100%（目前 ${current}）`,
+      markupRequired: '請填寫加價倍數',
+      markupFormat: '加價倍數最多到小數 3 位',
+      markupRange: '加價倍數需介於 1.0 到 3.0 之間',
     },
   },
   // 5.3 行內新增盲注與場地
@@ -179,6 +221,8 @@ export const strings = {
     /** 錦標賽進場 2 次以上的小標籤 `×2` */
     entriesBadge: (n: number) => `×${n}`,
     entriesBadgeLabel: (n: number) => `進場 ${n} 次`,
+    /** 有出資者的場次小標籤 `賣30%`（7.1） */
+    soldBadge: (percent: string) => `賣${percent}`,
     loadingMore: '載入更多…',
     detail: {
       notFound: '找不到這筆紀錄',
@@ -199,6 +243,28 @@ export const strings = {
       cashOut: '到手金額',
       hourly: '時薪',
       bbProfit: 'bb 盈利',
+      /** 有出資者時的標籤（7.2） */
+      myHourly: '你的時薪',
+      myBbProfit: '你的 bb 盈利',
+      /** 有出資者時頂部大字的標籤與下方小字「全額 +$40,000 · 賣出 30%」 */
+      myProfitLabel: '你的盈利',
+      fullSummary: (full: string, sold: string) => `全額 ${full} · 賣出 ${sold}`,
+      // 7.2 賣股份區塊（只在有出資者時顯示）
+      stakingSection: '賣股份',
+      /** 一位出資者「A · 10% · ×1.2」 */
+      backerLabel: (name: string, share: string, markup: string) => `${name} · ${share} · ${markup}`,
+      /** 「付你 $1,200 · 分走 $5,000」 */
+      backerAmounts: (pay: string, payout: string) => `付你 ${pay} · 分走 ${payout}`,
+      /** 合計列「賣出 30% · 出資者付款合計 $3,600 · 分走獎金合計 $15,000」 */
+      stakingTotal: (sold: string, pay: string, payout: string) =>
+        `賣出 ${sold} · 出資者付款合計 ${pay} · 分走獎金合計 ${payout}`,
+      fullResult: '全額結果',
+      fullProfit: '全額盈利',
+      /** 「你的份額（你佔 70%）」 */
+      myShare: (percent: string) => `你的份額（你佔 ${percent}）`,
+      myCost: '你的成本',
+      myCashOut: '你的到手',
+      myProfit: '你的盈利',
       finish: '名次',
       /** MTT 只填參賽人數、沒填名次時的列標籤 */
       fieldSize: '參賽人數',
@@ -211,6 +277,8 @@ export const strings = {
     },
     deleteSheet: {
       title: '刪除這筆紀錄？',
+      /** 有出資者時盈利後加註「賣 30%」（7.5） */
+      soldNote: (percent: string) => `賣 ${percent}`,
       confirm: '刪除',
       failed: '刪除失敗，請再試一次',
     },
@@ -263,12 +331,16 @@ export const strings = {
       open: (type: string) => `切換到${type}頁籤`,
     },
     noRecordsInPeriod: '這個期間沒有紀錄',
+    /** 6 節：有賣股場次時指標卡下方的口徑說明 */
+    stakingNote: '含賣股場次，盈利相關指標以你的份額計算',
     curve: {
       title: '累積盈利曲線',
       needTwo: '至少需要 2 場紀錄才能畫出曲線',
       /** tooltip 日期 `2026/09/27` */
       date: (y: string, m: string, d: string) => `${y}/${m}/${d}`,
       sessionProfit: '該場盈利',
+      /** 該場有出資者時加註 `（賣 30%）`（6.3） */
+      soldSuffix: (percent: string) => `（賣 ${percent}）`,
       cumulative: '累積盈利',
       /** 圖表的無障礙名稱 */
       chartLabel: (n: number, total: string) => `累積盈利曲線，共 ${n} 場，累積 ${total}`,
@@ -359,6 +431,14 @@ export const strings = {
         id === null ? `${collection} 第 ${index} 筆` : `${collection} 第 ${index} 筆（id: ${id}）`,
       settingAt: (key: string) => `settings.${key}`,
       fieldAt: (field: string) => `欄位 ${field}`,
+      /** 出資者欄位的位置，例「出資者第 2 位 比例」（8.5） */
+      backerAt: (n: number, field: string | null) => (field === null ? `出資者第 ${n} 位` : `出資者第 ${n} 位 ${field}`),
+      backersField: '出資者',
+      backerFields: {
+        name: '名稱',
+        sharePermille: '比例',
+        markupPermille: '加價倍數',
+      },
       /** 位置與說明的組合，例「sessions 第 13 筆（id: …）：buyIns[0].fee 服務費不可大於買入」 */
       detail: (location: string, field: string | null, message: string) =>
         field === null ? `${location}：${message}` : `${location}：${field} ${message}`,
@@ -386,6 +466,8 @@ export const strings = {
         emptyText: '不可為空字串',
         textTooLong: '字數超過上限',
         bbLessThanSb: '大盲不可小於小盲',
+        duplicateBackerName: '出資者名稱重複',
+        backerShareTotalExceeded: '賣出比例合計超過 100%',
         duplicateId: (id: string) => `id ${id} 重複`,
         duplicateVenueName: (name: string) => `場地名稱「${name}」重複`,
         duplicateStake: (label: string) => `盲注 ${label} 重複`,
@@ -463,12 +545,21 @@ export const strings = {
       '買入總額',
       '服務費總額',
       '到手金額',
-      '盈利',
+      '全額盈利',
+      '賣出比例',
+      '出資者付款總額',
+      '分走獎金總額',
+      '你的盈利',
+      '出資者',
       '時長（分）',
       '參賽人數',
       '名次',
       '備註',
     ],
+    /** 出資者欄的一位：`A 10%×1.2`（8.6） */
+    backerItem: (name: string, share: string, markup: string) => `${name} ${share}${markup}`,
+    /** 出資者之間以全形分號連接 */
+    backerSeparator: '；',
   },
   // 8.7 備份提醒
   backupReminder: {
@@ -491,6 +582,10 @@ export const strings = {
     available: '有新版本',
     reload: '重新載入',
   },
+  // 3.7 資料庫升級（version 1 → 2）失敗時的錯誤狀態
+  dbUpgrade: {
+    failed: '資料升級失敗，請關閉 App 後重新開啟；你的資料沒有遺失',
+  },
   // 4.4 數值顯示用的符號與樣板（src/domain/format.ts 使用）
   format: {
     /** 分母為 0 等無法計算時 */
@@ -501,6 +596,8 @@ export const strings = {
     currency: '$',
     percent: '%',
     hourlySuffix: '/hr',
+    /** 加價倍數前綴：`×1.2`（4.4） */
+    markupPrefix: '×',
     bbPerHourSuffix: ' bb/hr',
     hours: (value: string) => `${value} 小時`,
     /** 贏率、ITM%：`13/26（50.0%）` */
