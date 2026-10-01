@@ -243,6 +243,37 @@ export function hasStakedSessions(sessions: readonly Pick<Session, 'backers'>[])
   return sessions.some(hasBackers)
 }
 
+/** 6.3 水上 / 水下：累積值剛好為 0 視為水上（gain） */
+export type CurveTone = 'gain' | 'loss'
+
+/** 資料點圓圈與作用中圓點的顏色：累積值 ≥ 0 為 gain、< 0 為 loss */
+export function curvePointTone(cumulative: number): CurveTone {
+  return cumulative >= 0 ? 'gain' : 'loss'
+}
+
+/**
+ * 6.3 曲線線條的著色方式：
+ * - `solid`：整條單色（全部 ≥ 0 → gain；全部 ≤ 0 且有負值 → loss，此時線條沒有任何一段在 0 之上）。
+ *   所有點同值時線條 path 高度為 0，objectBoundingBox 漸層會使線條消失，所以必定走這條路。
+ * - `split`：跨 0（max > 0 > min），以 objectBoundingBox 的垂直 linearGradient 在 offset 處硬切換。
+ *   bbox 為線條 path 本身的範圍（資料 min～max，不是 Y 軸 domain），頂端（offset 0）= max、底端（offset 1）= min，
+ *   Y 軸為線性比例，所以 y = 0 的位置 offset = max / (max − min)。
+ */
+export type CurveStroke = { kind: 'solid'; tone: CurveTone } | { kind: 'split'; offset: number }
+
+export function curveStroke(values: readonly number[]): CurveStroke {
+  // 用迴圈而非 Math.max(...values)，避免大量資料時展開參數超出呼叫堆疊
+  let max = -Infinity
+  let min = Infinity
+  for (const v of values) {
+    if (v > max) max = v
+    if (v < min) min = v
+  }
+  if (values.length === 0 || min >= 0) return { kind: 'solid', tone: 'gain' }
+  if (max <= 0) return { kind: 'solid', tone: 'loss' }
+  return { kind: 'split', offset: max / (max - min) }
+}
+
 /** 少於 2 筆不畫曲線（6.3） */
 export const MIN_CURVE_POINTS = 2
 /** 超過 500 點不畫個別資料點圓圈（6.3） */
