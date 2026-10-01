@@ -41,7 +41,7 @@ const stakedMtt = makeSession({
 const plainCash = makeSession({ id: uuid(2), type: 'cash', stakeId: S1, buyIns: [{ amount: 5000, fee: 100 }], cashOut: 3000 })
 
 function backup(sessions: Session[] = [stakedMtt, plainCash]): BackupFile {
-  return buildBackup({ sessions, venues, stakes, settings: { lastType: 'mtt' } }, NOW)
+  return buildBackup({ sessions, venues, stakes, hands: [], settings: { lastType: 'mtt' } }, NOW)
 }
 
 /** 深拷貝後修改 sessions，模擬被竄改的 v2 備份檔 */
@@ -58,11 +58,12 @@ function expectInvalid(input: unknown) {
   return r.error
 }
 
-describe('8.4 匯出（schemaVersion 2）', () => {
-  it('P5.5 匯出 JSON 的 schemaVersion 為 2，每筆 session 含 backers（沒有賣股為 []），元素為 { name, sharePermille, markupPermille }', () => {
+// v2（SPEC-v2-hands 10.1）：目前匯出版本為 3；backers 的格式與檢查不變
+describe('8.4 匯出（schemaVersion 3，含 backers）', () => {
+  it('P5.5 匯出 JSON 的 schemaVersion 為 3（v1.2 時為 2），每筆 session 含 backers（沒有賣股為 []），元素為 { name, sharePermille, markupPermille }', () => {
     const b = backup()
-    expect(CURRENT_SCHEMA_VERSION).toBe(2)
-    expect(b.schemaVersion).toBe(2)
+    expect(CURRENT_SCHEMA_VERSION).toBe(3)
+    expect(b.schemaVersion).toBe(3)
     const json = JSON.parse(serializeBackup(b))
     const mtt = json.sessions.find((s: Session) => s.id === stakedMtt.id)
     const cash = json.sessions.find((s: Session) => s.id === plainCash.id)
@@ -92,7 +93,9 @@ describe('8.5 匯入 schemaVersion 1（遷移 1 → 2）', () => {
     const r = parseBackupText(fixtureText)
     expect(r.ok).toBe(true)
     if (!r.ok) throw new Error('unreachable')
-    expect(r.backup.schemaVersion).toBe(2)
+    // v2：1 → 2 → 3 逐步升級
+    expect(r.backup.schemaVersion).toBe(3)
+    expect(r.backup.hands).toEqual([])
     expect(r.backup.sessions).toHaveLength(3)
     r.backup.sessions.forEach((s, i) => {
       const { backers, ...rest } = s
@@ -113,8 +116,15 @@ describe('8.5 匯入 schemaVersion 1（遷移 1 → 2）', () => {
   })
 
   it('遷移函式只動 backers；sessions 不是陣列或某筆不是物件時原樣保留，交給驗證報錯', () => {
-    const migrated = migrateBackup({ schemaVersion: 1, sessions: [{ id: 'a', x: 1 }, 5], venues: [] })
+    const migrated = migrateBackup({ schemaVersion: 1, sessions: [{ id: 'a', x: 1 }, 5], venues: [] }, BACKUP_MIGRATIONS, 2)
     expect(migrated).toEqual({ schemaVersion: 2, sessions: [{ id: 'a', x: 1, backers: [] }, 5], venues: [] })
+    // v2：升級到目前版本時再補 hands: []（2 → 3），sessions 不變
+    expect(migrateBackup({ schemaVersion: 1, sessions: [{ id: 'a', x: 1 }, 5], venues: [] })).toEqual({
+      schemaVersion: 3,
+      sessions: [{ id: 'a', x: 1, backers: [] }, 5],
+      venues: [],
+      hands: [],
+    })
     expect(BACKUP_MIGRATIONS[1]!({ schemaVersion: 1, sessions: 'x' })).toEqual({ schemaVersion: 1, sessions: 'x' })
     expect(expectInvalid({ ...JSON.parse(fixtureText), sessions: [5] })).toMatchObject({ code: 'invalidRecord', index: 1 })
   })

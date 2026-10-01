@@ -7,6 +7,7 @@ import {
   InUseError,
   RecordNotFoundError,
   DB_VERSION,
+  SCHEMA_V3,
   ReferenceNotFoundError,
   SCHEMA_V1,
   SCHEMA_V2,
@@ -37,7 +38,8 @@ afterEach(async () => {
 const ISO_WITH_OFFSET = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}[+-]\d{2}:\d{2}$/
 
 describe('3.7 Dexie schema', () => {
-  it('version(1) 的 stores 完全等於規格 3.7；version(2) 的 stores 與 v1 相同', async () => {
+  // v2（SPEC-v2-hands 3.12）：version 1、2 定義保留不變；version 3 新增 hands 表、既有表定義不變
+  it('version(1) 的 stores 完全等於規格 3.7；version(2) 的 stores 與 v1 相同；version(3) 只新增 hands', async () => {
     const { db } = setup()
     expect(SCHEMA_V1).toEqual({
       sessions: 'id, type, startAt, venueId, stakeId',
@@ -47,17 +49,19 @@ describe('3.7 Dexie schema', () => {
     })
     // v1.2：DB_VERSION 由 1 改為 2，stores 定義不變（3.7）
     expect(SCHEMA_V2).toEqual(SCHEMA_V1)
-    expect(DB_VERSION).toBe(2)
-    expect(db.verno).toBe(2)
+    // v2：DB_VERSION 由 2 改為 3；version 3 的既有表與 v1 相同，另加 hands
+    expect(DB_VERSION).toBe(3)
+    expect(db.verno).toBe(3)
+    expect(SCHEMA_V3).toEqual({ ...SCHEMA_V1, hands: 'id, playedAt, sessionId, &exportSeq, sourceHandId, *tags' })
     const actual = Object.fromEntries(
       db.tables.map((t) => [t.name, [t.schema.primKey.src, ...t.schema.indexes.map((i) => i.src)].join(', ')]),
     )
-    expect(actual).toEqual(SCHEMA_V1)
+    expect(actual).toEqual(SCHEMA_V3)
 
     // 開啟後實際建立的 IndexedDB object store 與索引
     await db.open()
     const idb = db.backendDB()
-    expect([...idb.objectStoreNames].sort()).toEqual(['sessions', 'settings', 'stakes', 'venues'])
+    expect([...idb.objectStoreNames].sort()).toEqual(['hands', 'sessions', 'settings', 'stakes', 'venues'])
     const tx = idb.transaction(['sessions', 'venues', 'stakes', 'settings'], 'readonly')
     expect([...tx.objectStore('sessions').indexNames].sort()).toEqual(['stakeId', 'startAt', 'type', 'venueId'])
     expect([...tx.objectStore('venues').indexNames].sort()).toEqual(['archived', 'name'])
@@ -285,8 +289,10 @@ describe('sessions repository', () => {
     const { repos } = setup()
     const venue = await repos.venues.create('V')
     const s = await repos.sessions.create({ ...timedMtt, venueId: venue.id, name: 'Event', note: 'n' })
-    const deleted = await repos.sessions.delete(s.id)
+    // v2（SPEC-v2-hands 6.5）：delete 另回傳被轉為獨立的手牌 id（沒有手牌時為 []）
+    const { session: deleted, detachedHandIds } = await repos.sessions.delete(s.id)
     expect(deleted).toEqual(s)
+    expect(detachedHandIds).toEqual([])
     expect(await repos.sessions.get(s.id)).toBeUndefined()
     await repos.sessions.restore(deleted)
     expect(await repos.sessions.get(s.id)).toEqual(s)
@@ -297,7 +303,7 @@ describe('sessions repository', () => {
   it('restore：驗證 schema 與參照', async () => {
     const { repos } = setup()
     const s = await repos.sessions.create(timedMtt)
-    const deleted = await repos.sessions.delete(s.id)
+    const { session: deleted } = await repos.sessions.delete(s.id)
     await expect(repos.sessions.restore({ ...deleted, venueId: 'missing' })).rejects.toBeInstanceOf(
       ReferenceNotFoundError,
     )

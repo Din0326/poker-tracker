@@ -38,7 +38,7 @@ const uuid = (n: number) => `00000000-0000-4000-8000-${n.toString(16).padStart(1
 function otherBackup(): BackupFile {
   return {
     app: 'poker-tracker',
-    schemaVersion: 2,
+    schemaVersion: 3,
     exportedAt: '2026-09-20T10:00:00+08:00',
     venues: [{ id: uuid(1), name: 'B 場', archived: true, sortOrder: 0 }],
     stakes: [],
@@ -61,17 +61,20 @@ function otherBackup(): BackupFile {
         updatedAt: '2026-09-01T23:00:00+08:00',
       },
     ],
+    // v2：hands 的取代另見 hands-backup.test.ts
+    hands: [],
     settings: { profitColorScheme: 'greenGain' },
   }
 }
 
 describe('loadAllData', () => {
-  it('讀出四張表，settings 轉為 key → value', async () => {
+  it('讀出五張表（v2 含 hands），settings 轉為 key → value', async () => {
     const { db } = await setup()
     const data = await loadAllData(db)
     expect(data.sessions).toHaveLength(1)
     expect(data.venues).toHaveLength(1)
     expect(data.stakes).toHaveLength(1)
+    expect(data.hands).toEqual([])
     expect(data.settings).toMatchObject({ lastType: 'cash', recordDraft: { version: 1 } })
   })
 })
@@ -85,7 +88,8 @@ describe('8.5 replaceAllData', () => {
     expect(data.sessions).toEqual(backup.sessions)
     expect(data.venues).toEqual(backup.venues)
     expect(data.stakes).toEqual([])
-    expect(data.settings).toEqual({ profitColorScheme: 'greenGain', lastBackupAt: backup.exportedAt })
+    // v2 10.2：lastHandSeq = max(檔案中的 lastHandSeq（沒有時為 0）, 檔案 hands 的最大 exportSeq) = 0
+    expect(data.settings).toEqual({ profitColorScheme: 'greenGain', lastBackupAt: backup.exportedAt, lastHandSeq: 0 })
   })
 
   it('匯出 → 取代後再匯出：內容相同（除 exportedAt）', async () => {
@@ -94,7 +98,8 @@ describe('8.5 replaceAllData', () => {
     await replaceAllData(db, otherBackup())
     await replaceAllData(db, first)
     const second = buildBackup(await loadAllData(db), new Date(2026, 8, 28, 22, 0))
-    expect(second).toEqual(first)
+    // v2 10.2：匯入後一律寫入 lastHandSeq（此例為 0），其餘內容相同
+    expect(second).toEqual({ ...first, settings: { ...first.settings, lastHandSeq: 0 } })
   })
 
   it('寫入途中失敗時整個還原，不留下半套資料', async () => {
@@ -109,9 +114,9 @@ describe('8.5 replaceAllData', () => {
 })
 
 describe('8.9 clearAllData', () => {
-  it('清除四張表（含設定）', async () => {
+  it('清除五張表（含設定；v2 含 hands）', async () => {
     const { db } = await setup()
     await clearAllData(db)
-    expect(await loadAllData(db)).toEqual({ sessions: [], venues: [], stakes: [], settings: {} })
+    expect(await loadAllData(db)).toEqual({ sessions: [], venues: [], stakes: [], hands: [], settings: {} })
   })
 })

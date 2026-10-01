@@ -176,7 +176,7 @@ export function SessionDetailPage() {
     setBusy(true)
     try {
       const removed = await repos.sessions.delete(session.id)
-      removeCachedSession(removed.id)
+      removeCachedSession(removed.session.id)
       setSheet(null)
       void navigate(`${SESSIONS_PATH}${listMemory.search}`, { replace: true })
       const toastId = showGlobalToast({
@@ -186,8 +186,8 @@ export function SessionDetailPage() {
           label: strings.sessions.undo.restore,
           onPress: () => {
             hideGlobalToast(toastId)
-            // 以原始 id、createdAt、updatedAt 原封不動寫回
-            repos.sessions.restore(removed).then(
+            // 以原始 id、createdAt、updatedAt 原封不動寫回；刪除時轉為獨立的手牌重新掛回（SPEC-v2-hands 6.5）
+            repos.sessions.restore(removed.session, removed.detachedHandIds).then(
               (s) => upsertCachedSession(s),
               () => showGlobalToast({ text: strings.sessions.undo.restoreFailed, durationMs: ERROR_TOAST_MS }),
             )

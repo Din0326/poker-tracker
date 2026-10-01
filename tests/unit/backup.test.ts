@@ -96,6 +96,8 @@ function validBackup(): BackupFile {
       sessions,
       venues,
       stakes,
+      // v2：hands 的匯出與驗證另見 hands-backup.test.ts
+      hands: [],
       settings: {
         lastType: 'cash',
         lastVenueByType: { cash: V1, mtt: null },
@@ -125,12 +127,13 @@ function expectError(input: unknown, expected: Partial<BackupError>): BackupErro
 }
 
 describe('8.4 buildBackup', () => {
-  it('格式完全照規格：app、schemaVersion、exportedAt（含偏移）、四個集合；settings 不含 recordDraft 與 lastBackupAt', () => {
+  // v2（SPEC-v2-hands 10.1）：schemaVersion 3，集合多了 hands（位於 stakes 與 settings 之間）
+  it('格式完全照規格：app、schemaVersion、exportedAt（含偏移）、五個集合；settings 不含 recordDraft 與 lastBackupAt', () => {
     const b = validBackup()
-    expect(Object.keys(b)).toEqual(['app', 'schemaVersion', 'exportedAt', 'sessions', 'venues', 'stakes', 'settings'])
+    expect(Object.keys(b)).toEqual(['app', 'schemaVersion', 'exportedAt', 'sessions', 'venues', 'stakes', 'hands', 'settings'])
     expect(b.app).toBe('poker-tracker')
-    // v1.2 起為 2（8.4）；每筆 session 都含 backers 陣列
-    expect(b.schemaVersion).toBe(2)
+    // v1.2 起為 2（8.4）、v2 起為 3（v2 10.1）；每筆 session 都含 backers 陣列
+    expect(b.schemaVersion).toBe(3)
     for (const s of b.sessions) expect(Array.isArray(s.backers)).toBe(true)
     expect(b.exportedAt).toMatch(/^2026-09-28T21:05:42[+-]\d{2}:\d{2}$/)
     expect(b.settings).toEqual({
@@ -155,7 +158,7 @@ describe('8.4 buildBackup', () => {
   })
 
   it('沒有設定時 settings 為空物件', () => {
-    expect(buildBackup({ sessions: [], venues: [], stakes: [], settings: {} }, NOW).settings).toEqual({})
+    expect(buildBackup({ sessions: [], venues: [], stakes: [], hands: [], settings: {} }, NOW).settings).toEqual({})
   })
 
   it('匯出的內容可以原樣匯入（round-trip）', () => {
@@ -173,11 +176,11 @@ describe('8.4 backupFileName', () => {
 })
 
 describe('8.5 migrateBackup', () => {
-  // v1.2：目前版本為 2，已是目前版本的資料直通不變（原「v1 直通」改為 v2；1 → 2 的遷移另見 staking-backup.test.ts）
-  it('v2 直通：內容不變', () => {
+  // v2：目前版本為 3，已是目前版本的資料直通不變（原「v2 直通」改為 v3；1 → 2 見 staking-backup.test.ts、2 → 3 見 hands-backup.test.ts）
+  it('v3 直通：內容不變', () => {
     const data = { ...validBackup() } as unknown as Record<string, unknown> & { schemaVersion: number }
     expect(migrateBackup(data)).toEqual(data)
-    expect(CURRENT_SCHEMA_VERSION).toBe(2)
+    expect(CURRENT_SCHEMA_VERSION).toBe(3)
   })
 
   it('依版本逐步升級（框架）：v1 → v2 → v3', () => {
@@ -222,8 +225,8 @@ describe('8.5 驗證：檔案層級（依檢查順序）', () => {
   })
 
   it('schemaVersion 大於目前版本（過新）', () => {
-    // 目前版本為 2（v1.2），3 為過新
-    expectError(mutate((d) => (d.schemaVersion = 3)), { code: 'schemaTooNew' })
+    // 目前版本為 3（v2），4 為過新
+    expectError(mutate((d) => (d.schemaVersion = 4)), { code: 'schemaTooNew' })
   })
 
   it('檢查順序：app 錯誤優先於版本錯誤；版本過新優先於資料錯誤', () => {
@@ -253,7 +256,10 @@ describe('8.5 驗證：檔案層級（依檢查順序）', () => {
     expectError(mutate((d) => ((d as Record<string, unknown>).stakes = null)), { code: 'invalidStructure', key: 'stakes', issue: 'invalidType' })
     expectError(mutate((d) => ((d as Record<string, unknown>).settings = [])), { code: 'invalidStructure', key: 'settings', issue: 'invalidType' })
     expectError(mutate((d) => delete (d as Record<string, unknown>).settings), { code: 'invalidStructure', key: 'settings', issue: 'required' })
-    expectError(mutate((d) => (d.hands = [])), { code: 'invalidStructure', key: 'hands', issue: 'unknownKey' })
+    // v2：hands 成為合法集合，改以其他未知欄位驗證；hands 不是陣列也拒絕
+    expectError(mutate((d) => (d.handz = [])), { code: 'invalidStructure', key: 'handz', issue: 'unknownKey' })
+    expectError(mutate((d) => (d.hands = {})), { code: 'invalidStructure', key: 'hands', issue: 'invalidType' })
+    expectError(mutate((d) => delete d.hands), { code: 'invalidStructure', key: 'hands', issue: 'required' })
   })
 
   it('空的備份檔（沒有任何資料）合法', () => {

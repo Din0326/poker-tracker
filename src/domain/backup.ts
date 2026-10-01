@@ -2,18 +2,22 @@
 // 不碰 DB 與 UI；錯誤以代碼 + 位置回傳，由 UI 依 strings.ts 組成文字。
 import dayjs from 'dayjs'
 import type { z } from 'zod'
+import { HAND_ISSUE, handSchema } from './hands/schemas'
+import { verifyHand, type HandDetailIssueCode } from './hands/summary'
+import type { ActionErrorCode } from './hands/engine'
+import type { Hand, HandGameType } from './hands/types'
 import { ISSUE, sessionSchema, settingSchemas, stakeSchema, timestampSchema, venueSchema } from './schemas'
-import { SETTING_KEYS, type Session, type SettingKey, type Settings, type Stake, type Venue } from './types'
+import { SETTING_KEYS, type Session, type SessionType, type SettingKey, type Settings, type Stake, type Venue } from './types'
 
 export const BACKUP_APP = 'poker-tracker'
 /**
- * 目前的備份檔格式版本（8.4）：v1.0–v1.1 為 1；v1.2（賣股份）起為 2。
+ * 目前的備份檔格式版本（8.4）：v1.0–v1.1 為 1；v1.2（賣股份）起為 2；v2（手牌，SPEC-v2-hands 10.1）起為 3。
  * 每次升版都需在 BACKUP_MIGRATIONS 加入 v(n-1) → v(n) 的遷移
  */
-export const CURRENT_SCHEMA_VERSION = 2
+export const CURRENT_SCHEMA_VERSION = 3
 
-/** 備份檔不包含的設定（8.4）：草稿與上次備份時間 */
-export const NON_EXPORTED_SETTING_KEYS = ['recordDraft', 'lastBackupAt'] as const satisfies readonly SettingKey[]
+/** 備份檔不包含的設定（8.4、v2 10.1）：草稿（場次與手牌）與上次備份時間 */
+export const NON_EXPORTED_SETTING_KEYS = ['recordDraft', 'lastBackupAt', 'handDraft'] as const satisfies readonly SettingKey[]
 type NonExportedKey = (typeof NON_EXPORTED_SETTING_KEYS)[number]
 export type ExportedSettingKey = Exclude<SettingKey, NonExportedKey>
 export const EXPORTED_SETTING_KEYS = SETTING_KEYS.filter(
@@ -31,10 +35,12 @@ export interface BackupFile {
   sessions: Session[]
   venues: Venue[]
   stakes: Stake[]
+  /** v2 手牌（10.1），依 id 排序 */
+  hands: Hand[]
   settings: BackupSettings
 }
 
-const TOP_LEVEL_KEYS = ['app', 'schemaVersion', 'exportedAt', 'sessions', 'venues', 'stakes', 'settings'] as const
+const TOP_LEVEL_KEYS = ['app', 'schemaVersion', 'exportedAt', 'sessions', 'venues', 'stakes', 'hands', 'settings'] as const
 
 /** ISO 8601 含本地時區偏移（與 db 層 toIsoWithOffset 相同格式） */
 export function isoWithOffset(date: Date): string {
@@ -45,7 +51,8 @@ export interface BackupSource {
   sessions: readonly Session[]
   venues: readonly Venue[]
   stakes: readonly Stake[]
-  /** 目前的全部設定；recordDraft、lastBackupAt 會被排除 */
+  hands: readonly Hand[]
+  /** 目前的全部設定；recordDraft、lastBackupAt、handDraft 會被排除 */
   settings: Partial<Settings>
 }
 
@@ -55,7 +62,7 @@ const bySortOrderThenId = <T extends { id: string; sortOrder: number }>(a: T, b:
 
 /**
  * 組出備份物件（8.4）。順序固定，同一份資料每次匯出結果相同：
- * sessions 依 id；venues、stakes 依 sortOrder（同值再依 id）；settings 依 3.5 的 key 順序。
+ * sessions、hands 依 id；venues、stakes 依 sortOrder（同值再依 id）；settings 依 3.5 的 key 順序。
  */
 export function buildBackup(source: BackupSource, now: Date): BackupFile {
   const settings: BackupSettings = {}
@@ -70,6 +77,7 @@ export function buildBackup(source: BackupSource, now: Date): BackupFile {
     sessions: [...source.sessions].sort(byId),
     venues: [...source.venues].sort(bySortOrderThenId),
     stakes: [...source.stakes].sort(bySortOrderThenId),
+    hands: [...source.hands].sort(byId),
     settings,
   }
 }
@@ -96,6 +104,7 @@ export type BackupMigrations = Readonly<Record<number, (data: BackupData) => Rec
  * 8.5 定義的遷移：
  * - 1 → 2：每筆 session 設定 `backers: []`（v1 備份檔沒有此欄位；即使檔案中意外出現也一律覆寫為 []），
  *   其他欄位不變。sessions 不是陣列、或某筆不是物件時原樣保留，交給後續驗證回報錯誤。
+ * - 2 → 3（v2 10.2）：設定 `hands: []`（v2 備份檔沒有此欄位；即使檔案中意外出現也一律覆寫為 []），其他欄位不變。
  */
 export const BACKUP_MIGRATIONS: BackupMigrations = {
   1: (data) => ({
@@ -104,6 +113,7 @@ export const BACKUP_MIGRATIONS: BackupMigrations = {
       ? data.sessions.map((s: unknown) => (isPlainObject(s) ? { ...s, backers: [] } : s))
       : data.sessions,
   }),
+  2: (data) => ({ ...data, hands: [] }),
 }
 
 /** 依版本逐步升級到 target；缺少某一步的遷移時丟出錯誤（程式錯誤，不應發生） */
@@ -138,10 +148,14 @@ export type BackupErrorCode =
   | 'duplicateVenueName'
   | 'duplicateStake'
   | 'missingReference'
+  /** v2 10.3：手牌的 3.9 結構驗證失敗（附行動序號） */
+  | 'invalidHandDetail'
+  | 'duplicateExportSeq'
+  | 'duplicateSourceHandId'
 
-export type BackupCollection = 'sessions' | 'venues' | 'stakes' | 'settings'
+export type BackupCollection = 'sessions' | 'venues' | 'stakes' | 'hands' | 'settings'
 
-type CustomIssueKind = keyof typeof ISSUE
+type CustomIssueKind = keyof typeof ISSUE | keyof typeof HAND_ISSUE
 
 /** 欄位問題種類（Zod 代碼或 domain/schemas.ts 的 ISSUE 轉成的名稱） */
 export type BackupIssueKind =
@@ -155,6 +169,14 @@ export type BackupIssueKind =
   | 'unknownKey'
   | 'invalid'
   | CustomIssueKind
+  /** 手牌：kind 與 3.9 判定不一致 */
+  | 'kindMismatch'
+  /** 手牌：摘要欄位與推導結果不一致（path 為該欄位） */
+  | 'summaryMismatch'
+  /** 手牌：簡易手牌的 collected 必須為 [] */
+  | 'collectedMustBeEmpty'
+  /** 手牌：關聯場次的類型不相容（3.11） */
+  | 'sessionTypeMismatch'
 
 export interface BackupError {
   code: BackupErrorCode
@@ -169,8 +191,13 @@ export interface BackupError {
   /** 該筆資料內的欄位路徑，例 ['buyIns', 0, 'fee'] */
   path?: (string | number)[]
   issue?: BackupIssueKind
-  /** 重複的 id / 名稱 / 盲注，或不存在的參照 id */
+  /** 重複的 id / 名稱 / 盲注 / exportSeq / sourceHandId，或不存在的參照 id */
   value?: string
+  /** invalidHandDetail：結構驗證失敗的原因 */
+  handIssue?: HandDetailIssueCode
+  /** invalidHandDetail 且 handIssue 為 illegalAction：第幾個行動（1 起算）與引擎的錯誤代碼 */
+  actionIndex?: number
+  actionError?: ActionErrorCode
 }
 
 export type BackupResult = { ok: true; backup: BackupFile } | { ok: false; error: BackupError }
@@ -180,7 +207,7 @@ function isPlainObject(value: unknown): value is Record<string, unknown> {
 }
 
 const customIssueByCode = new Map<string, CustomIssueKind>(
-  (Object.entries(ISSUE) as [CustomIssueKind, string][]).map(([kind, code]) => [code, kind]),
+  ([...Object.entries(ISSUE), ...Object.entries(HAND_ISSUE)] as [CustomIssueKind, string][]).map(([kind, code]) => [code, kind]),
 )
 
 /** 沿著路徑取值，用來判斷欄位是缺少（undefined）還是型別錯誤 */
@@ -242,7 +269,7 @@ export function parseBackupText(text: string): BackupResult {
 }
 
 function validateCollection<T>(
-  collection: 'sessions' | 'venues' | 'stakes',
+  collection: 'sessions' | 'venues' | 'stakes' | 'hands',
   items: readonly unknown[],
   schema: z.ZodType<T>,
 ): { ok: true; data: T[] } | { ok: false; error: BackupError } {
@@ -262,7 +289,7 @@ function validateCollection<T>(
 }
 
 /** 同一集合內 id 不可重複；回傳第一筆重複（第二次出現的位置） */
-function findDuplicateId(collection: 'sessions' | 'venues' | 'stakes', items: readonly { id: string }[]): BackupError | null {
+function findDuplicateId(collection: 'sessions' | 'venues' | 'stakes' | 'hands', items: readonly { id: string }[]): BackupError | null {
   const seen = new Set<string>()
   for (let i = 0; i < items.length; i++) {
     const id = items[i]!.id
@@ -275,11 +302,15 @@ function findDuplicateId(collection: 'sessions' | 'venues' | 'stakes', items: re
 /**
  * 8.5 驗證順序（任一步失敗即停止）：
  * 1. 是物件 → 2. app 為 poker-tracker → 3. schemaVersion 為正整數且不大於目前版本（較舊時先遷移）
- * → 4. 頂層結構（exportedAt 與四個集合）→ 5. 每筆資料通過 Zod（sessions、venues、stakes、settings 依序）
- * → 6. id 不重複、場地名稱不重複（不分大小寫）、盲注 sb/bb 不重複（3.3、3.4）
+ * → 4. 頂層結構（exportedAt 與五個集合）→ 5. 每筆資料通過 Zod（sessions、venues、stakes、hands、settings 依序；
+ *    hands 含 amountUnit 推導檢查，v2 10.2 第 1 項）
+ * → v2 10.2 第 2 項：每筆有 detail 的手牌通過 3.9 結構驗證、kind 與摘要欄位一致
+ * → v2 10.2 第 3 項：手牌的 sessionId 存在於檔案的 sessions 中（或為 null）且類型相容（3.11）
+ * → v2 10.2 第 4 項：exportSeq 不重複；source 為 gg 的 sourceHandId 不重複
+ * → 6. id 不重複（含 hands）、場地名稱不重複（不分大小寫）、盲注 sb/bb 不重複（3.3、3.4）
  * → 7. 參照的 venueId、stakeId 都存在於備份檔內
  *
- * settings：允許缺 key；recordDraft、lastBackupAt 若存在直接忽略（匯入時本來就會清除 / 覆寫）；
+ * settings：允許缺 key；recordDraft、lastBackupAt、handDraft 若存在直接忽略（匯入時本來就會清除 / 覆寫）；
  * 其他未知 key 視為錯誤。頂層未知欄位也視為錯誤。
  */
 export function validateBackup(input: unknown): BackupResult {
@@ -304,7 +335,7 @@ export function validateBackup(input: unknown): BackupResult {
       issue: data.exportedAt === undefined ? 'required' : 'invalidFormat',
     })
   }
-  for (const key of ['sessions', 'venues', 'stakes'] as const) {
+  for (const key of ['sessions', 'venues', 'stakes', 'hands'] as const) {
     if (!Array.isArray(data[key])) {
       return fail({ code: 'invalidStructure', key, issue: data[key] === undefined ? 'required' : 'invalidType' })
     }
@@ -324,6 +355,8 @@ export function validateBackup(input: unknown): BackupResult {
   if (!venues.ok) return fail(venues.error)
   const stakes = validateCollection('stakes', data.stakes as unknown[], stakeSchema)
   if (!stakes.ok) return fail(stakes.error)
+  const hands = validateCollection('hands', data.hands as unknown[], handSchema)
+  if (!hands.ok) return fail(hands.error)
 
   const settings: BackupSettings = {}
   for (const [key, value] of Object.entries(data.settings)) {
@@ -337,11 +370,16 @@ export function validateBackup(input: unknown): BackupResult {
     ;(settings as Record<string, unknown>)[k] = r.data
   }
 
+  // ---- v2 10.2：手牌的結構驗證、參照、編號不重複 ----
+  const handError = validateHands(hands.data, sessions.data)
+  if (handError) return fail(handError)
+
   // ---- 不可重複（3.3、3.4） ----
   const dup =
     findDuplicateId('sessions', sessions.data) ??
     findDuplicateId('venues', venues.data) ??
-    findDuplicateId('stakes', stakes.data)
+    findDuplicateId('stakes', stakes.data) ??
+    findDuplicateId('hands', hands.data)
   if (dup) return fail(dup)
 
   const names = new Set<string>()
@@ -382,7 +420,71 @@ export function validateBackup(input: unknown): BackupResult {
       sessions: sessions.data,
       venues: venues.data,
       stakes: stakes.data,
+      hands: hands.data,
       settings,
     },
   }
+}
+
+/** 3.11 類型相容：cash 手牌只能關聯 cash 場次；tournament 只能關聯 mtt、timed_mtt */
+export function isSessionTypeCompatible(gameType: HandGameType, sessionType: SessionType): boolean {
+  return gameType === 'cash' ? sessionType === 'cash' : sessionType === 'mtt' || sessionType === 'timed_mtt'
+}
+
+/** v2 10.2 第 2–4 項（每筆已通過 handSchema） */
+function validateHands(hands: readonly Hand[], sessions: readonly Session[]): BackupError | null {
+  for (let i = 0; i < hands.length; i++) {
+    const h = hands[i]!
+    const base = { collection: 'hands', index: i + 1, id: h.id } as const
+    const r = verifyHand(h)
+    if (r.ok) continue
+    const e = r.error
+    switch (e.code) {
+      case 'invalidDetail':
+        return {
+          ...base,
+          code: 'invalidHandDetail',
+          path: ['detail'],
+          handIssue: e.issue.code,
+          ...(e.issue.actionIndex !== undefined ? { actionIndex: e.issue.actionIndex + 1, actionError: e.issue.actionError } : {}),
+        }
+      case 'kindMismatch':
+        return { ...base, code: 'invalidRecord', path: ['kind'], issue: 'kindMismatch' }
+      case 'summaryMismatch':
+        return { ...base, code: 'invalidRecord', path: [e.field], issue: 'summaryMismatch' }
+      case 'collectedMustBeEmpty':
+        return { ...base, code: 'invalidRecord', path: ['detail', 'collected'], issue: 'collectedMustBeEmpty' }
+    }
+  }
+  const sessionTypes = new Map(sessions.map((s) => [s.id, s.type]))
+  for (let i = 0; i < hands.length; i++) {
+    const h = hands[i]!
+    if (h.sessionId === null) continue
+    const type = sessionTypes.get(h.sessionId)
+    const base = { collection: 'hands', index: i + 1, id: h.id } as const
+    if (type === undefined) return { ...base, code: 'missingReference', path: ['sessionId'], value: h.sessionId }
+    if (!isSessionTypeCompatible(h.gameType, type)) {
+      return { ...base, code: 'invalidRecord', path: ['sessionId'], issue: 'sessionTypeMismatch' }
+    }
+  }
+  const seqs = new Set<number>()
+  const sourceIds = new Set<string>()
+  for (let i = 0; i < hands.length; i++) {
+    const h = hands[i]!
+    const base = { collection: 'hands', index: i + 1, id: h.id } as const
+    if (seqs.has(h.exportSeq)) return { ...base, code: 'duplicateExportSeq', path: ['exportSeq'], value: String(h.exportSeq) }
+    seqs.add(h.exportSeq)
+    if (h.source === 'gg' && h.sourceHandId !== null) {
+      if (sourceIds.has(h.sourceHandId)) {
+        return { ...base, code: 'duplicateSourceHandId', path: ['sourceHandId'], value: h.sourceHandId }
+      }
+      sourceIds.add(h.sourceHandId)
+    }
+  }
+  return null
+}
+
+/** v2 10.2：匯入完成後的 lastHandSeq = max(檔案中的 lastHandSeq（沒有時為 0）, 檔案 hands 的最大 exportSeq) */
+export function lastHandSeqAfterImport(backup: Pick<BackupFile, 'hands' | 'settings'>): number {
+  return backup.hands.reduce((max, h) => Math.max(max, h.exportSeq), backup.settings.lastHandSeq ?? 0)
 }
