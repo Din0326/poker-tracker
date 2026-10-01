@@ -1,5 +1,7 @@
 node_modules
 dist
+# P6-3 版本更新 E2E 建置的兩個版本
+dist-p6-*
 dev-dist
 coverage
 test-results
