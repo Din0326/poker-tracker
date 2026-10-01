@@ -51,8 +51,11 @@ export interface EngineState {
   readonly minRaise: number
   /** 本回合已行動過的座位（強制下注不算行動） */
   readonly actedThisRound: readonly number[]
-  /** 4.3「可加注」：自上一次完整加注（或本回合開始）後已行動過的座位 */
-  readonly actedSinceFullRaise: readonly number[]
+  /**
+   * 4.3「可加注」（Poker TDA 2019 Rule 47 A）：座位 → 該玩家本回合上一次行動後的該街投入額（matchedAtLastAction）。
+   * 沒有紀錄 = 本回合尚未行動（強制下注不算行動）。
+   */
+  readonly matchedAtLastAction: Readonly<Record<number, number>>
   /** 輪到行動的座位；手牌結束時為 null */
   readonly toAct: number | null
   /** 是否自動發完（4.4） */
@@ -146,7 +149,7 @@ export function startHand(config: EngineConfig): EngineState {
     currentBet,
     minRaise: currentBet,
     actedThisRound: [],
-    actedSinceFullRaise: [],
+    matchedAtLastAction: {},
     toAct: firstFrom(players, after, canAct),
     runout: false,
     completedStreets: [],
@@ -178,6 +181,17 @@ export interface LegalActions {
   maxTo: number | null
 }
 
+/**
+ * 4.3「可加注」（Poker TDA 2019 Rules Version 1.0, Rule 47 A）：
+ * - 本回合尚未行動過（強制下注不算行動，翻前大盲 / straddle 的 option 因此保留）：可加注。
+ * - 已行動過：輪回時面對的金額 B − matchedAtLastAction ≥ L（本回合最後一次完整下注 / 加注的增量）才重新開放；
+ *   一次或多次不完整全下累計未達 L 時只能跟注或棄牌。
+ */
+function raiseReopened(state: EngineState, seatNo: number): boolean {
+  const matched = state.matchedAtLastAction[seatNo]
+  return matched === undefined || state.currentBet - matched >= state.minRaise
+}
+
 /** 4.3 目前輪到的玩家可做的行動；手牌已結束時回傳 null */
 export function legalActions(state: EngineState): LegalActions | null {
   if (state.status !== 'betting' || state.toAct === null) return null
@@ -188,7 +202,7 @@ export function legalActions(state: EngineState): LegalActions | null {
   const L = state.minRaise
   const toCall = B - A
   const canBet = B === 0 && S > 0
-  const canRaise = B > 0 && S > toCall && !state.actedSinceFullRaise.includes(p.seatNo)
+  const canRaise = B > 0 && S > toCall && raiseReopened(state, p.seatNo)
   const allInTo = A + S
   let minTo: number | null = null
   if (canBet) minTo = Math.min(state.bb, S)
@@ -239,7 +253,7 @@ function endRound(
   base: EngineState,
   players: PlayerState[],
   acted: readonly number[],
-  actedSinceFullRaise: readonly number[],
+  matchedAtLastAction: Readonly<Record<number, number>>,
   currentBet: number,
   minRaise: number,
 ): EngineState {
@@ -247,7 +261,7 @@ function endRound(
   const refund = refundUncalled(players, street)
   const refunds = refund ? [...base.refunds, refund] : base.refunds
   const completedStreets = [...base.completedStreets, street]
-  const common = { ...base, players, refunds, completedStreets, actedThisRound: acted, actedSinceFullRaise, currentBet, minRaise, toAct: null }
+  const common = { ...base, players, refunds, completedStreets, actedThisRound: acted, matchedAtLastAction, currentBet, minRaise, toAct: null }
   const active = players.filter((p) => !p.folded)
   if (active.length === 1) return { ...common, status: 'foldEnded' }
   const next = nextStreet(street)
@@ -267,7 +281,7 @@ function endRound(
     currentBet: 0,
     minRaise: base.bb,
     actedThisRound: [],
-    actedSinceFullRaise: [],
+    matchedAtLastAction: {},
     // 翻牌後第一位行動者：按鈕順時針下一位仍在牌局中且未全下的玩家
     toAct: firstFrom(players, nextSeatClockwise(players.map((p) => p.seatNo), base.buttonSeat), canAct),
     potAtStart: { ...base.potAtStart, [next]: pot },
@@ -289,10 +303,6 @@ export function applyAction(state: EngineState, action: Pick<Action, 'street' | 
   const p = players.find((x) => x.seatNo === action.seatNo)!
   let currentBet = state.currentBet
   let minRaise = state.minRaise
-  let actedSinceFullRaise = [...state.actedSinceFullRaise]
-  const markActed = () => {
-    if (!actedSinceFullRaise.includes(p.seatNo)) actedSinceFullRaise.push(p.seatNo)
-  }
   const putTo = (to: number) => {
     const delta = to - p.street
     p.street = to
@@ -303,16 +313,13 @@ export function applyAction(state: EngineState, action: Pick<Action, 'street' | 
   switch (type) {
     case 'fold':
       p.folded = true
-      markActed()
       break
     case 'check':
       if (!legal.canCheck) return fail('cannotCheck')
-      markActed()
       break
     case 'call':
       if (!legal.canCall) return fail('cannotCall')
       putTo(p.street + legal.callAmount)
-      markActed()
       break
     case 'bet': {
       const to = action.to!
@@ -322,8 +329,8 @@ export function applyAction(state: EngineState, action: Pick<Action, 'street' | 
       if (to <= 0) return fail('betTooSmall')
       putTo(to)
       currentBet = to
+      // 不足 bb 的全下下注為不完整下注：L 仍為 bb（max 的結果即為 bb）
       minRaise = Math.max(to, state.bb)
-      actedSinceFullRaise = [p.seatNo]
       break
     }
     case 'raise': {
@@ -336,28 +343,25 @@ export function applyAction(state: EngineState, action: Pick<Action, 'street' | 
       const increment = to - state.currentBet
       putTo(to)
       currentBet = to
-      if (increment >= state.minRaise) {
-        // 完整加注：L = r，重新開放行動
-        minRaise = increment
-        actedSinceFullRaise = [p.seatNo]
-      } else {
-        // 不完整加注（只可能是全下）：L 不變，不重新開放
-        markActed()
-      }
+      // 完整加注（r ≥ L）：L = r；不完整加注（只可能是全下）：L 不變。
+      // 是否重新開放由 raiseReopened 依各玩家面對的累計金額判斷，這裡不需另外處理。
+      if (increment >= state.minRaise) minRaise = increment
       break
     }
   }
 
   const acted = state.actedThisRound.includes(p.seatNo) ? [...state.actedThisRound] : [...state.actedThisRound, p.seatNo]
+  // 記下行動後的該街投入（過牌 / 棄牌為當時的投入）
+  const matchedAtLastAction = { ...state.matchedAtLastAction, [p.seatNo]: p.street }
   if (isRoundOver(players, currentBet, acted)) {
-    return { ok: true, state: endRound(state, players, acted, actedSinceFullRaise, currentBet, minRaise) }
+    return { ok: true, state: endRound(state, players, acted, matchedAtLastAction, currentBet, minRaise) }
   }
   // 輪位：順時針下一位「未棄牌、未全下、且這回合還需要行動」的玩家
   const needsAction = (x: PlayerState) => canAct(x) && (!acted.includes(x.seatNo) || x.street < currentBet)
   const toAct = firstFrom(players, nextSeatClockwise(players.map((x) => x.seatNo), p.seatNo), needsAction)
   return {
     ok: true,
-    state: { ...state, players, currentBet, minRaise, actedThisRound: acted, actedSinceFullRaise, toAct },
+    state: { ...state, players, currentBet, minRaise, actedThisRound: acted, matchedAtLastAction, toAct },
   }
 }
 

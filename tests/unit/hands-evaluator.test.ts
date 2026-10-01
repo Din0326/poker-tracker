@@ -130,41 +130,46 @@ describe('HC14 牌型描述', () => {
   })
 })
 
-describe('HC15 下注快捷（元單位）', () => {
-  const flop = (pot: number) => quickBetSizes({ pot, currentBet: 0, minRaise: 200, committed: 0, stack: 100000, bb: 200 })
+describe('HC15 下注快捷（元單位，盲注 25 / 50，籌碼 100,000）', () => {
+  // 籌碼足夠，不會被全下夾限；最小合法金額 bet 為 bb 50、raise 為 B + L
+  const flop = (pot: number) => quickBetSizes({ pot, currentBet: 0, minRaise: 50, committed: 0, stack: 100000, bb: 50 })
 
-  it('HC15 翻牌底池 550、無人下注：½ 池 275、⅔ 池 367（366.67 進位）、底池 550', () => {
+  it('HC15 翻牌底池 550、無人下注：最小 50、½ 池 275、⅔ 池 367（366.67 進位）、底池 550', () => {
     const s = flop(550)
+    expect(s.min).toEqual({ to: 50, allIn: false })
     expect(s.half).toEqual({ to: 275, allIn: false })
     expect(s.twoThirds).toEqual({ to: 367, allIn: false })
     expect(s.pot).toEqual({ to: 550, allIn: false })
+    expect(s.allIn).toEqual({ to: 100000, allIn: true })
   })
 
-  it('HC15 翻牌底池 275、無人下注：½ 池 138（137.5 進位）', () => {
-    // 規格疑義（說明）：4.11 此例未寫盲注；以 bb 200 計算時 138 < bb 會被夾限為 200，所以本例以 bb 50（≤ 138）驗證捨入
-    const s = quickBetSizes({ pot: 275, currentBet: 0, minRaise: 50, committed: 0, stack: 100000, bb: 50 })
+  it('HC15 翻牌底池 275、無人下注：最小 50、½ 池 138（137.5 進位）、⅔ 池 183（183.33 捨去）、底池 275', () => {
+    const s = flop(275)
+    expect(s.min).toEqual({ to: 50, allIn: false })
     expect(s.half).toEqual({ to: 138, allIn: false })
-    expect(flop(275).half).toEqual({ to: 200, allIn: false })
+    expect(s.twoThirds).toEqual({ to: 183, allIn: false })
+    expect(s.pot).toEqual({ to: 275, allIn: false })
   })
 
-  it('HC15 轉牌前底池 1,250、對手下注 800（P = 2,050、C = 800、B = 800）：½ 池 2225、⅔ 池 2700、底池 3650', () => {
-    const s = quickBetSizes({ pot: 2050, currentBet: 800, minRaise: 800, committed: 0, stack: 100000, bb: 200 })
-    expect(s.half.to).toBe(2225)
-    expect(s.twoThirds.to).toBe(2700)
-    expect(s.pot.to).toBe(3650)
+  it('HC15 轉牌前底池 1,250、對手下注 800（P = 2,050、C = 800、B = 800、L = 800）：最小 1600、½ 池 2225、⅔ 池 2700、底池 3650', () => {
+    const s = quickBetSizes({ pot: 2050, currentBet: 800, minRaise: 800, committed: 0, stack: 100000, bb: 50 })
+    expect(s.min).toEqual({ to: 1600, allIn: false })
+    expect(s.half).toEqual({ to: 2225, allIn: false })
+    expect(s.twoThirds).toEqual({ to: 2700, allIn: false })
+    expect(s.pot).toEqual({ to: 3650, allIn: false })
     // 金額全部為整數（按鈕顯示 `$275`、`$367` 等的格式屬 4.12，H1 / H2）
     for (const v of Object.values(s)) expect(Number.isInteger(v.to)).toBe(true)
   })
 
-  it('HC15 同一情境以引擎狀態推導 P、C、B（轉牌前底池 1,250、對手下注 800）', () => {
-    // 2 人：翻前 1 跟注、2 過牌（底池 400）；翻牌 2 下注 425、1 跟注（底池 1250）；轉牌 2 下注 800
-    const d = detail({ tableSize: 2, buttonSeat: 1, heroSeat: 1, seats: [seat(1, 20000), seat(2, 20000)] })
+  it('HC15 同一情境以引擎狀態推導 P、C、B（盲注 25 / 50，轉牌前底池 1,250、對手下注 800）', () => {
+    // 2 人：翻前 1 跟注、2 過牌（底池 100）；翻牌 2 下注 575、1 跟注（底池 1250）；轉牌 2 下注 800
+    const d = detail({ tableSize: 2, buttonSeat: 1, heroSeat: 1, sb: 25, bb: 50, seats: [seat(1, 100000), seat(2, 100000)] })
     const r = replay({
       ...d,
       actions: [
         act('preflop', 1, 'call'),
         act('preflop', 2, 'check'),
-        act('flop', 2, 'bet', 425),
+        act('flop', 2, 'bet', 575),
         act('flop', 1, 'call'),
         act('turn', 2, 'bet', 800),
       ],
@@ -173,7 +178,7 @@ describe('HC15 下注快捷（元單位）', () => {
     if (!r.ok) return
     expect(r.state.potAtStart.turn).toBe(1250)
     const s = quickBetSizesFor(r.state)!
-    expect([s.half.to, s.twoThirds.to, s.pot.to]).toEqual([2225, 2700, 3650])
+    expect([s.min.to, s.half.to, s.twoThirds.to, s.pot.to]).toEqual([1600, 2225, 2700, 3650])
   })
 
   it('HC15 翻前底池加注：盲注 100 / 200、UTG 面對 200 → 700', () => {

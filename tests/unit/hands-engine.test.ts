@@ -1,5 +1,5 @@
 // SPEC-v2-hands 4.1–4.9：位置、強制下注、行動順序、合法行動、回合結束、自動發完、未跟注退回、邊池、分配
-// 12.2 必測案例 HC1–HC10（12.3 H0「引擎、底池」）與邊界情況
+// 12.2 必測案例 HC1–HC10、HC32–HC35（12.3 H0「引擎、底池」）與邊界情況
 import { describe, expect, it } from 'vitest'
 import {
   analyzeDetail,
@@ -154,6 +154,9 @@ describe('HC3 最小加注（sb 100 / bb 200，UTG 加注到 600）', () => {
 
 describe('HC4 不完整全下不重新開放', () => {
   // 3 人：座位 1 按鈕（C）、2 小盲（A）、3 大盲（B）；翻前平跟進翻牌，翻牌順序 A、B、C
+  // TDA Rule 47 A 推導（4.3）：A 下注 1000（L 1000）；B 加注到 3000（完整，L 2000）；C 全下到 4000（不完整，L 仍 2000）。
+  // 輪回 A：上次行動後投入 1000，面對 4000 − 1000 = 3000 ≥ 2000 → 可加注，最小到 6000。
+  // A 跟注 4000 後輪回 B：上次行動後投入 3000，面對 4000 − 3000 = 1000 < 2000 → 不可加注。
   const d = detail({
     tableSize: 3,
     buttonSeat: 1,
@@ -399,6 +402,88 @@ describe('HC10 抽水扣除順序（HC5 加 rake 3500）', () => {
   })
 })
 
+describe('HC32–HC34 TDA Rule 47 例 1：多次不完整全下累計（盲注 50 / 100，翻牌）', () => {
+  // 5 人、按鈕座位 5：1 小盲（A）、2 大盲（B）、3（C）、4（D）、5 按鈕（E）；翻前全部平跟、大盲過牌，翻牌順序 A–E
+  // B 籌碼 225（翻前 100 + 翻牌 125）、D 籌碼 300（翻前 100 + 翻牌 200），其餘足夠
+  const d = detail({
+    tableSize: 5,
+    buttonSeat: 5,
+    heroSeat: 5,
+    sb: 50,
+    bb: 100,
+    seats: [seat(1, 10000), seat(2, 225), seat(3, 10000), seat(4, 300), seat(5, 10000)],
+  })
+  const preflop = [act('preflop', 3, 'call'), act('preflop', 4, 'call'), act('preflop', 5, 'call'), act('preflop', 1, 'call'), act('preflop', 2, 'check')]
+  const flop = [
+    act('flop', 1, 'bet', 100),
+    act('flop', 2, 'raise', 125), // 全下，增量 25 < 100（不完整）
+    act('flop', 3, 'call'),
+    act('flop', 4, 'raise', 200), // 全下，增量 75 < 100（不完整）
+    act('flop', 5, 'call'),
+  ]
+  const base = [...preflop, ...flop]
+
+  it('HC32 輪回 A：面對 200 − 100 = 100 ≥ L 100（累計達一次完整加注）→ 可加注，最小加注到 300', () => {
+    const s = play({ ...d, actions: base })
+    expect(s.currentBet).toBe(200)
+    expect(s.minRaise).toBe(100)
+    expect(stackOf(s, 2).stack).toBe(0)
+    expect(stackOf(s, 4).stack).toBe(0)
+    expect(legalActions(s)).toMatchObject({ seatNo: 1, canRaise: true, toCall: 100, minTo: 300 })
+    expect(applyAction(s, act('flop', 1, 'raise', 250))).toEqual({ ok: false, code: 'raiseTooSmall' })
+    expect(applyAction(s, act('flop', 1, 'raise', 300)).ok).toBe(true)
+  })
+
+  it('HC33 A 只跟注到 200；輪到 C：已跟 125、面對 75 < 100 → 不可加注，只能跟注 75 或棄牌；引擎拒絕 C 的 raise', () => {
+    const s = play({ ...d, actions: [...base, act('flop', 1, 'call')] })
+    expect(legalActions(s)).toMatchObject({ seatNo: 3, canRaise: false, canCall: true, canFold: true, canCheck: false, toCall: 75, callAmount: 75 })
+    expect(applyAction(s, act('flop', 3, 'raise', 400))).toEqual({ ok: false, code: 'raiseNotReopened' })
+    const called = applyAction(s, act('flop', 3, 'call'))
+    expect(called.ok && called.state.street).toBe('turn')
+  })
+
+  it('HC34 A 加注到 300（最小加注）；輪到 C：面對 300 − 125 = 175 ≥ 100 → 可加注', () => {
+    const s = play({ ...d, actions: [...base, act('flop', 1, 'raise', 300)] })
+    expect(s.minRaise).toBe(100)
+    expect(legalActions(s)).toMatchObject({ seatNo: 3, canRaise: true, toCall: 175, minTo: 400 })
+    expect(applyAction(s, act('flop', 3, 'raise', 400)).ok).toBe(true)
+  })
+})
+
+describe('HC35 TDA Rule 47 例 2：最小加注不累計（盲注 50 / 100，翻牌）', () => {
+  // 6 人、按鈕座位 6：1 小盲（A）、2 大盲（B）、3（C）、4（D）、5（E）、6 按鈕（F）；翻前全部平跟、大盲過牌
+  // B、C、D 籌碼依序 600、750、900（翻前 100 + 翻牌全下 500、650、800），其餘足夠
+  const d = detail({
+    tableSize: 6,
+    buttonSeat: 6,
+    heroSeat: 6,
+    sb: 50,
+    bb: 100,
+    seats: [seat(1, 10000), seat(2, 600), seat(3, 750), seat(4, 900), seat(5, 10000), seat(6, 10000)],
+  })
+  const actions = [
+    ...[3, 4, 5, 6, 1].map((n) => act('preflop', n, 'call')),
+    act('preflop', 2, 'check'),
+    act('flop', 1, 'bet', 300),
+    act('flop', 2, 'raise', 500), // 全下，增量 200 < 300
+    act('flop', 3, 'raise', 650), // 全下，增量 150 < 300
+    act('flop', 4, 'raise', 800), // 全下，增量 150 < 300
+    act('flop', 5, 'call'),
+  ]
+
+  it('HC35 輪到 F（未行動）：最小加注到 1100（800 + 最後一次完整下注 300），加注到 1000 被拒', () => {
+    const s = play({ ...d, actions })
+    expect(s.currentBet).toBe(800)
+    expect(s.minRaise).toBe(300)
+    expect(legalActions(s)).toMatchObject({ seatNo: 6, canRaise: true, toCall: 800, minTo: 1100 })
+    expect(applyAction(s, act('flop', 6, 'raise', 1000))).toEqual({ ok: false, code: 'raiseTooSmall' })
+    expect(applyAction(s, act('flop', 6, 'raise', 1100)).ok).toBe(true)
+    // F 只跟注時輪回 A：面對 800 − 300 = 500 ≥ 300 → 可加注，最小仍到 1100
+    const called = play({ ...d, actions: [...actions, act('flop', 6, 'call')] })
+    expect(legalActions(called)).toMatchObject({ seatNo: 1, canRaise: true, toCall: 500, minTo: 1100 })
+  })
+})
+
 describe('引擎邊界：合法行動與輪位', () => {
   const six = detail({ tableSize: 6, buttonSeat: 4, heroSeat: 4, seats: [1, 2, 3, 4, 5, 6].map((n) => seat(n, 20000)) })
 
@@ -434,6 +519,8 @@ describe('引擎邊界：合法行動與輪位', () => {
     expect(applyAction(s2, act('flop', 1, 'bet', 100))).toEqual({ ok: false, code: 'betTooSmall' })
     const allIn = applyAction(s2, act('flop', 1, 'bet', 150))
     expect(allIn.ok && [allIn.state.currentBet, allIn.state.minRaise]).toEqual([150, 200])
+    // 不足 bb 的全下下注為不完整下注：已過牌的座位 2 面對 150 < L 200，不重新開放（4.3，TDA Rule 47 A）
+    expect(allIn.ok && legalActions(allIn.state)).toMatchObject({ seatNo: 2, canRaise: false, canCall: true, toCall: 150 })
   })
 
   it('跟注金額不足時全下（投入 min(toCall, S)）', () => {
@@ -488,9 +575,6 @@ describe('引擎邊界：合法行動與輪位', () => {
     ]
     const facing = play({ ...d, actions })
     expect(facing.minRaise).toBe(1300)
-    // 規格疑義：依 4.3 建議的 actedSinceFullRaise 集合，兩次不完整加注累計 1500 ≥ L 也不重新開放（座位 4 不能再加注）
-    expect(legalActions(facing)).toMatchObject({ seatNo: 4, canRaise: false, toCall: 1500 })
-    expect(applyAction(facing, act('preflop', 4, 'raise', 4000))).toEqual({ ok: false, code: 'raiseNotReopened' })
     const s = play({ ...d, actions: [...actions, act('preflop', 4, 'call'), act('preflop', 5, 'fold')] })
     expect(s.status).toBe('showdown')
     expect(s.runout).toBe(true)
