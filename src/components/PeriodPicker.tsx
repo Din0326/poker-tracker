@@ -67,7 +67,8 @@ export function CustomRangeFields({ idPrefix, value, onChange, error }: RangePro
   )
   return (
     <div>
-      <div className="grid grid-cols-2 gap-3">
+      {/* 欄寬明寫 minmax(0,1fr)：起迄日框的固有寬度不能撐開欄位（iOS 日期溢出修正）；子項另有 min-w-0 */}
+      <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)] gap-3">
         {field('from')}
         {field('to')}
       </div>
