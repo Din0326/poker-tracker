@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
-import { useBlocker, useNavigate, useParams, type BlockerFunction } from 'react-router'
+import { useBlocker, useNavigate, useParams, useSearchParams, type BlockerFunction } from 'react-router'
 import { BottomSheet } from '../../components/BottomSheet'
 import { Page } from '../../components/Page'
 import { dangerButtonClass, secondaryButtonClass } from '../../components/controlStyles'
@@ -8,7 +8,9 @@ import { useAppData } from '../../lib/appData'
 import { useGoBack } from '../../lib/useGoBack'
 import { strings } from '../../strings'
 import { HandForm, type HandFormData } from './HandForm'
-import { handToValues } from './handFormModel'
+import { completeFromSimple, handToValues } from './handFormModel'
+import { COMPLETE_PARAM, HANDS_PATH, handDetailPath } from './handPaths'
+import { upsertCachedHand } from './handsStore'
 import { loadHandFormData } from './loadHandFormData'
 
 type LoadState = { status: 'loading' } | { status: 'error' } | { status: 'notFound' } | { status: 'ready'; hand: Hand; data: HandFormData }
@@ -16,12 +18,15 @@ type LoadState = { status: 'loading' } | { status: 'error' } | { status: 'notFou
 // 編輯手牌（SPEC-v2-hands 5.8）：#/hands/:id/edit。沿用新增的元件；不讀寫草稿、不更新 lastHandSetup。
 // 簡易備忘手牌開啟簡易模式（可「補齊為完整手牌」）；有 detail 的手牌開啟完整模式，進度停在最後狀態。
 // 有未儲存變更時，所有 App 內離開都先確認「放棄變更？」（同 v1 5.7 的 useBlocker 做法）。
-// 手牌詳情（#/hands/:id）於 H2 實作；儲存後返回上一頁，直接開啟網址時回到首頁。
+// 儲存後返回手牌詳情（5.8；返回上一頁，直接開啟網址時前往詳情）。
+// 從詳情「補齊為完整手牌」進入（?complete=1）時，簡易備忘手牌直接開啟完整模式步驟 1 並預填備忘內容（5.8）。
 export function HandEditPage() {
   const { id = '' } = useParams()
   const { repos } = useAppData()
   const navigate = useNavigate()
-  const backTo = '/'
+  const backTo = handDetailPath(id)
+  const [params] = useSearchParams()
+  const completeRequested = params.get(COMPLETE_PARAM) === '1'
   const goBack = useGoBack(backTo)
   const [state, setState] = useState<LoadState>({ status: 'loading' })
   const [attempt, setAttempt] = useState(0)
@@ -52,6 +57,12 @@ export function HandEditPage() {
   }, [repos, id, attempt])
 
   const editValues = useMemo(() => (state.status === 'ready' ? handToValues(state.hand, state.data.lastHandSetup) : null), [state])
+  // 補齊為完整手牌：只適用手動紀錄的簡易備忘手牌（detail 為 null）；以補齊後的值為未變更的基準，未修改就返回不詢問
+  const initialValues = useMemo(() => {
+    if (state.status !== 'ready' || !editValues) return null
+    const canComplete = completeRequested && state.hand.source === 'manual' && state.hand.detail === null
+    return canComplete ? completeFromSimple(editValues, state.data.lastHandSetup) : editValues
+  }, [state, editValues, completeRequested])
 
   const leaveSheet = (
     <BottomSheet open={blocker.state === 'blocked'} title={strings.sessions.editLeaveSheet.title} onClose={() => blocker.reset?.()}>
@@ -66,8 +77,8 @@ export function HandEditPage() {
     </BottomSheet>
   )
 
-  if (state.status === 'ready' && editValues) {
-    const values = editValues
+  if (state.status === 'ready' && initialValues) {
+    const values = initialValues
     return (
       <>
         <HandForm
@@ -81,8 +92,9 @@ export function HandEditPage() {
           title={strings.pages.handEdit}
           backTo={backTo}
           onDirtyChange={onDirtyChange}
-          onSaved={() => {
+          onSaved={(hand) => {
             dirtyRef.current = false
+            upsertCachedHand(hand)
             goBack()
           }}
         />
@@ -118,7 +130,7 @@ export function HandEditPage() {
     body = (
       <div className="flex flex-col items-center gap-4 py-16 text-center">
         <p className="text-lg">{strings.hands.notFound}</p>
-        <button type="button" onClick={() => void navigate('/', { replace: true })} className={secondaryButtonClass}>
+        <button type="button" onClick={() => void navigate(HANDS_PATH, { replace: true })} className={secondaryButtonClass}>
           {strings.common.back}
         </button>
       </div>

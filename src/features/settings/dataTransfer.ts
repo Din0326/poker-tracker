@@ -8,6 +8,8 @@ import { DEFAULT_REPORT_PERIOD, reportMemory } from '../report/reportMemory'
 import { DEFAULT_FILTERS } from '../sessions/listFilters'
 import { listMemory } from '../sessions/listMemory'
 import { invalidateSessions } from '../sessions/sessionsStore'
+import { invalidateHands } from '../hands/handsStore'
+import { resetHandsListMemory } from '../hands/handsListMemory'
 
 export interface AllData {
   sessions: Session[]
@@ -70,11 +72,14 @@ export async function clearAllData(db: PokerDb): Promise<void> {
 }
 
 /**
- * 匯入或清除後：紀錄列表 / 報表的記憶體快取失效，篩選與報表選擇回到預設
+ * 匯入或清除後：紀錄列表、手牌列表 / 報表的記憶體快取失效，篩選與報表選擇回到預設
  * （避免仍套用指向舊資料的場地、盲注篩選），盈虧顏色依新設定套用。
  */
 export function resetAppState(profitScheme: Settings['profitColorScheme'] = DEFAULT_PROFIT_SCHEME): void {
   invalidateSessions()
+  // v2：手牌列表的快取與篩選記憶同樣回到預設（SPEC-v2-hands 6.1）
+  invalidateHands()
+  resetHandsListMemory()
   listMemory.filters = DEFAULT_FILTERS
   listMemory.visible = null
   listMemory.search = ''

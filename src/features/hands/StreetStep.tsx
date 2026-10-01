@@ -14,6 +14,7 @@ import { strings } from '../../strings'
 import { CardList } from './CardFace'
 import { CardSlots } from './CardSlots'
 import { actorLabeler } from './actorLabel'
+import { actionPhrase } from './handDetailView'
 import { Field, labelClass, sectionTitleClass } from './formParts'
 import { ERROR_KEYS, confirmedBoard, pendingBoardSlots, type CompleteStage, type HandErrors, type HandFormValues, type ParsedSetup } from './handFormModel'
 
@@ -59,7 +60,7 @@ export function ActionLog({ values, setup, unit, untilStreet, runoutFrom }: LogP
                 <ol className="num mt-1 space-y-0.5 text-sm">
                   {lines.map((x, i) => (
                     <li key={i} data-testid="log-line">
-                      {t.log.line(label(x.action.seatNo), actionText(x.action.type, x.amount, x.allIn, unit))}
+                      {t.log.line(label(x.action.seatNo), actionPhrase(x.action.type, x.amount, x.allIn, unit))}
                     </li>
                   ))}
                 </ol>
@@ -70,13 +71,6 @@ export function ActionLog({ values, setup, unit, untilStreet, runoutFrom }: LogP
       </div>
     </section>
   )
-}
-
-function actionText(type: string, amount: number | null, allIn: boolean, unit: AmountUnit): string {
-  const money = amount === null ? '' : formatHandAmount(amount, unit)
-  const base =
-    type === 'fold' ? t.log.fold : type === 'check' ? t.log.check : type === 'call' ? t.log.call(money) : type === 'bet' ? t.log.bet(money) : t.log.raise(money)
-  return allIn ? `${base} ${t.log.allIn}` : base
 }
 
 type Props = {

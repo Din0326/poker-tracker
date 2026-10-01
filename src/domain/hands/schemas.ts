@@ -283,10 +283,23 @@ export const handSchema: z.ZodType<Hand> = z
     }
   })
 
+/** 3.10：Settings.handHeroName 未設定時視為 `Hero` */
+export const DEFAULT_HERO_NAME = 'Hero'
+
+/** 7.3 匯出名稱的檢查結果：invalid = 不符合字元規則；reserved = Villain 加數字；null = 合法 */
+export type HeroNameIssue = 'invalid' | 'reserved'
+
+export function heroNameIssue(name: string): HeroNameIssue | null {
+  if (!HERO_NAME_RE.test(name)) return 'invalid'
+  if (VILLAIN_NAME_RE.test(name)) return 'reserved'
+  return null
+}
+
 /** 7.3 匯出名稱（Settings.handHeroName） */
 export const handHeroNameSchema = z.string().superRefine((s, ctx) => {
-  if (!HERO_NAME_RE.test(s)) ctx.addIssue({ code: 'custom', message: HAND_ISSUE.invalidHeroName })
-  else if (VILLAIN_NAME_RE.test(s)) ctx.addIssue({ code: 'custom', message: HAND_ISSUE.heroNameReserved })
+  const issue = heroNameIssue(s)
+  if (issue === 'invalid') ctx.addIssue({ code: 'custom', message: HAND_ISSUE.invalidHeroName })
+  else if (issue === 'reserved') ctx.addIssue({ code: 'custom', message: HAND_ISSUE.heroNameReserved })
 })
 
 /** 3.10 lastHandSetup（金額單位依 gameType 為元或籌碼，上限同 3.8） */

@@ -12,6 +12,8 @@ import { SESSIONS_PATH } from '../sessions/listUrl'
 import { HandForm, type HandFormData } from './HandForm'
 import { createEntryValues, parseHandDraft, type HandFormValues } from './handFormModel'
 import { loadHandFormData } from './loadHandFormData'
+import { HANDS_PATH } from './handPaths'
+import { upsertCachedHand } from './handsStore'
 
 const t = strings.hands
 const TOAST_MS = 5000
@@ -34,7 +36,7 @@ type LoadState =
   | { status: 'ready'; ready: Ready }
 
 // 新增手牌（SPEC-v2-hands 5.1–5.7）：#/hands/new（可帶 ?sessionId=）。
-// 入口：場次詳情的「＋ 新增手牌」（H1；手牌列表的入口於 H2 加入）
+// 入口：手牌列表右上角與空狀態（不關聯場次）、場次詳情的「＋ 新增手牌」（預先關聯該場）
 export function HandNewPage() {
   const { repos } = useAppData()
   const [params] = useSearchParams()
@@ -69,9 +71,9 @@ export function HandNewPage() {
     }
   }, [repos, sessionParam, attempt])
 
-  // 從場次詳情進入者返回場次詳情（5.8）；其餘返回上一頁（手牌列表於 H2 實作，直接開啟網址時回到首頁）
+  // 5.8 儲存後：從場次詳情進入者返回場次詳情；其餘返回手牌列表（皆為返回上一頁；直接開啟網址時前往 backTo）
   const fromSession = state.status === 'ready' || state.status === 'prompt' ? state.ready.session : null
-  const backTo = fromSession ? `${SESSIONS_PATH}/${encodeURIComponent(fromSession.id)}` : '/'
+  const backTo = fromSession ? `${SESSIONS_PATH}/${encodeURIComponent(fromSession.id)}` : HANDS_PATH
   const goBack = useGoBack(backTo)
 
   if (state.status === 'ready') {
@@ -86,7 +88,10 @@ export function HandNewPage() {
         makeEntry={() => createEntryValues({ now: new Date(), lastHandSetup: ready.data.lastHandSetup, session: ready.session, stake: ready.stake })}
         title={strings.pages.handNew}
         backTo={backTo}
-        onSaved={() => goBack()}
+        onSaved={(hand) => {
+          upsertCachedHand(hand)
+          goBack()
+        }}
       />
     )
   }
