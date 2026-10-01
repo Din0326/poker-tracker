@@ -22,8 +22,6 @@ import {
 
 // 10.3 P5.5 賣股份（v1.2）
 
-test.use({ timezoneId: 'Asia/Taipei' })
-
 const section = (page: Page) => page.getByTestId('staking-section')
 const backerRows = (page: Page) => page.getByTestId('backer-row')
 const toast = (page: Page) => page.getByRole('status').filter({ hasText: '已儲存' })

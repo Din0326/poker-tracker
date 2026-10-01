@@ -17,6 +17,8 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run check
+      # CI 本身為 UTC，check 已涵蓋；再以負偏移時區跑一次，抓出寫死時區偏移的測試
+      - run: npm run test:tz -- America/New_York
       - run: npx playwright install --with-deps webkit
       - run: npm run e2e
       - uses: actions/upload-artifact@v4

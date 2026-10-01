@@ -22,7 +22,6 @@ import {
 import { chooseImportFile, clearAllData, clickAndDownload, disableShare, openSettings } from './helpers/settings'
 
 // SPEC-v2-hands H0：資料層與遷移的 E2E（H0 沒有手牌 UI，手牌以 IndexedDB 直接寫入）
-test.use({ timezoneId: 'Asia/Taipei' })
 
 const byId = <T extends { id: string }>(items: T[]) => [...items].sort((a, b) => a.id.localeCompare(b.id))
 const allSessions: Session[] = [...fixtureSessions, ...stakedSessions]
@@ -179,10 +178,10 @@ test('H0 驗收：匯出 JSON（schemaVersion 3 含 hands）→ 清除所有資�
   await openSettings(page)
   await chooseImportFile(page, body)
   const sheet = page.getByRole('dialog', { name: '匯入備份？' })
-  await expect(sheet.getByTestId('import-backup-count')).toHaveText('7 場')
+  await expect(sheet.getByTestId('import-backup-count')).toHaveText('7 場、5 手')
   await sheet.getByRole('button', { name: '匯入', exact: true }).click()
   await expect(sheet).toHaveCount(0)
-  await expect(page.getByTestId('global-toast-text')).toHaveText('已匯入 7 場紀錄')
+  await expect(page.getByTestId('global-toast-text')).toHaveText('已匯入 7 場紀錄、5 手牌')
 
   const after = await snapshot(page)
   expect(after.sessions).toEqual(before.sessions)

@@ -10,6 +10,7 @@
     "typecheck": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p tsconfig.node.json",
     "lint": "eslint .",
     "test": "vitest run",
+    "test:tz": "node scripts/test-tz.mjs",
     "e2e": "playwright test",
     "icons": "node scripts/generate-icons.mjs",
     "check:strings": "node scripts/check-hardcoded.mjs strings",
