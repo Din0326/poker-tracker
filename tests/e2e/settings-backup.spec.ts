@@ -27,7 +27,6 @@ import {
 } from './helpers/settings'
 
 // 10.3 P5：備份還原、匯入拒絕、CSV、分享、備份提醒
-test.use({ timezoneId: 'Asia/Taipei' })
 
 const byId = <T extends { id: string }>(items: T[]) => [...items].sort((a, b) => a.id.localeCompare(b.id))
 

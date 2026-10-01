@@ -24,7 +24,8 @@ describe('開發用 seed：10,000 手測試手牌', () => {
     expect(zodFailed.map((h) => h.exportSeq)).toEqual([])
     const verifyFailed = hands.filter((h) => !verifyHand(h).ok)
     expect(verifyFailed.map((h) => [h.exportSeq, verifyHand(h)])).toEqual([])
-  })
+    // 逐手驗證 10,000 手約需 5 秒，接近預設 5 秒上限；放寬以免機器忙碌時偶發逾時
+  }, 30_000)
 
   it('約 30% 簡易（含純備忘與未完成的完整紀錄）、70% 完整', () => {
     const simple = hands.filter((h) => h.kind === 'simple')

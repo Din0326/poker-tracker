@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { formatBbProfit, formatDuration, formatFieldSizeOnly, formatFinishPlace, formatTimestamp } from '../../src/domain/format'
+import { localIso } from './helpers/time'
 
 // 7.2 詳情用的顯示格式
 const MINUS = '−'
@@ -42,12 +43,7 @@ describe('7.2 formatFieldSizeOnly', () => {
 describe('7.2 formatTimestamp', () => {
   it('以本地時間顯示 `YYYY/MM/DD HH:mm`', () => {
     // 以本地時間建構後轉為含時區的 ISO，與時區設定無關
-    const local = new Date(2026, 8, 28, 21, 5, 0)
-    const offset = -local.getTimezoneOffset()
-    const sign = offset >= 0 ? '+' : '-'
-    const hh = String(Math.floor(Math.abs(offset) / 60)).padStart(2, '0')
-    const mm = String(Math.abs(offset) % 60).padStart(2, '0')
-    expect(formatTimestamp(`2026-09-28T21:05:00${sign}${hh}:${mm}`)).toBe('2026/09/28 21:05')
+    expect(formatTimestamp(localIso(2026, 9, 28, 21, 5, 0))).toBe('2026/09/28 21:05')
     expect(formatTimestamp('not a date')).toBe('—')
   })
 })

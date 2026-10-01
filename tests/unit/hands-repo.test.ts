@@ -18,6 +18,7 @@ import {
 import { buildBackup, type BackupFile } from '../../src/domain'
 import { loadAllData, replaceAllData } from '../../src/features/settings/dataTransfer'
 import { EXAMPLE_79_BOARD, buildHand, example79Detail, example79Hand } from './helpers/hands'
+import { localIso } from './helpers/time'
 
 let seq = 0
 const opened: PokerDb[] = []
@@ -85,9 +86,11 @@ describe('handRepo.create', () => {
       heroNet: -1250,
       bb: 200,
       detail: null,
-      createdAt: '2026-10-01T21:05:00+08:00',
-      updatedAt: '2026-10-01T21:05:00+08:00',
+      // 時間戳為含本地偏移的 ISO 8601，期望值依執行環境時區計算
+      createdAt: localIso(2026, 10, 1, 21, 5, 0),
+      updatedAt: localIso(2026, 10, 1, 21, 5, 0),
     })
+    expect(new Date(h.createdAt).getTime()).toBe(clock.getTime())
     expect(h.id).toMatch(/^[0-9a-f-]{36}$/)
     expect(await repos.hands.get(h.id)).toEqual(h)
     expect(await repos.settings.get('lastHandSeq')).toBe(1)
@@ -276,7 +279,8 @@ describe('handRepo.update（5.8）', () => {
     clock = new Date(2026, 9, 2, 8, 0, 0)
     const t = await repos.hands.update(h.id, { gameType: 'tournament' })
     expect(t).toMatchObject({ id: h.id, exportSeq: h.exportSeq, createdAt: h.createdAt, amountUnit: 'chip', gameType: 'tournament', bb: 200 })
-    expect(t.updatedAt).toBe('2026-10-02T08:00:00+08:00')
+    expect(t.updatedAt).toBe(localIso(2026, 10, 2, 8, 0, 0))
+    expect(new Date(t.updatedAt).getTime()).toBe(clock.getTime())
   })
 
   it('補齊為完整手牌：同一 id，kind 變為 complete，備忘的 heroNet 被計算值取代', async () => {

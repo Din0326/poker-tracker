@@ -22,7 +22,6 @@ import {
 import { chooseImportFile, clearAllData, clickAndDownload, disableShare, openSettings } from './helpers/settings'
 
 // SPEC-v2-hands H0：資料層與遷移的 E2E（H0 沒有手牌 UI，手牌以 IndexedDB 直接寫入）
-test.use({ timezoneId: 'Asia/Taipei' })
 
 const byId = <T extends { id: string }>(items: T[]) => [...items].sort((a, b) => a.id.localeCompare(b.id))
 const allSessions: Session[] = [...fixtureSessions, ...stakedSessions]
