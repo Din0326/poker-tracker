@@ -32,6 +32,7 @@ import {
 } from '../../domain'
 import { describedBy } from '../../lib/aria'
 import { useAppData } from '../../lib/appData'
+import { registerDraftFlusher } from '../../lib/draftFlush'
 import { OBSCURES_BOTTOM_ATTR, useKeepFocusedVisible } from '../../lib/viewport'
 import { strings } from '../../strings'
 import { AddStakeSheet } from './AddStakeSheet'
@@ -163,6 +164,8 @@ export function RecordForm({ mode, data, initialSession, onDirtyChange, onSaved,
   // ---- 5.6 草稿：與預設值不同時，輸入停止 500ms 後寫入；回到預設值時刪除（編輯模式不讀寫） ----
   const draftTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
   const pendingDraft = useRef<(() => void) | null>(null)
+  // 進行中的草稿寫入；8.10 更新前的 flush 要等它完成
+  const draftWrite = useRef<Promise<void>>(Promise.resolve())
   useEffect(() => {
     if (isEdit) return
     const current = JSON.parse(valuesKey) as RecordFormValues
@@ -172,7 +175,7 @@ export function RecordForm({ mode, data, initialSession, onDirtyChange, onSaved,
         ? repos.settings.set('recordDraft', toDraft(current, venueTouched))
         : repos.settings.delete('recordDraft')
       // 草稿寫入失敗不影響表單操作
-      op.catch(() => undefined)
+      draftWrite.current = op.catch(() => undefined)
     }
     pendingDraft.current = write
     draftTimer.current = setTimeout(write, DRAFT_DEBOUNCE_MS)
@@ -187,7 +190,14 @@ export function RecordForm({ mode, data, initialSession, onDirtyChange, onSaved,
     }
     document.addEventListener('visibilitychange', onVisibility)
     window.addEventListener('pagehide', flush)
+    // 8.10：按「重新載入」更新前，UpdatePrompt 透過 flushPendingDrafts() 立即寫入並等待完成
+    const unregister = registerDraftFlusher(async () => {
+      clearTimeout(draftTimer.current)
+      flush()
+      await draftWrite.current
+    })
     return () => {
+      unregister()
       document.removeEventListener('visibilitychange', onVisibility)
       window.removeEventListener('pagehide', flush)
       clearTimeout(draftTimer.current)

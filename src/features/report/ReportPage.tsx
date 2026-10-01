@@ -19,6 +19,7 @@ import { strings } from '../../strings'
 import { buildSessionsListPath } from '../sessions/listUrl'
 import { buildLookup, profitColorClass } from '../sessions/sessionView'
 import { refreshSessions, retrySessions, useSessionsState } from '../sessions/sessionsStore'
+import { BackupReminder } from './BackupReminder'
 import { GroupStats } from './GroupStats'
 import { GROUP_OPTIONS_BY_TAB, buildGroups, type GroupBy, type GroupRow } from './grouping'
 import { ProfitCurve } from './ProfitCurve'
@@ -244,5 +245,11 @@ export function ReportPage() {
     )
   }
 
-  return <Page title={strings.pages.report}>{body}</Page>
+  return (
+    <Page title={strings.pages.report}>
+      {/* 8.7 備份提醒條：報表頁頂端 */}
+      {data && <BackupReminder sessions={data.sessions} />}
+      {body}
+    </Page>
+  )
 }

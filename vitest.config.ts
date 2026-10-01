@@ -1,3 +1,4 @@
+import { fileURLToPath } from 'node:url'
 import react from '@vitejs/plugin-react'
 import { defineConfig } from 'vitest/config'
 
@@ -16,6 +17,12 @@ export default defineConfig({
       },
       {
         extends: true,
+        // service worker 註冊模組由 vite-plugin-pwa 在建置時產生，元件測試改用替身
+        resolve: {
+          alias: {
+            'virtual:pwa-register/react': fileURLToPath(new URL('./tests/component/mocks/pwaRegister.ts', import.meta.url)),
+          },
+        },
         test: {
           name: 'component',
           include: ['tests/component/**/*.test.tsx'],
