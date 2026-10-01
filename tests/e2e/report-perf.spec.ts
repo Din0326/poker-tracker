@@ -8,9 +8,16 @@ import { seed } from './helpers/sessions'
 // 「更新完成」定義：指標卡（盈利）文字與曲線路徑都已改變，且之後再經過兩個 requestAnimationFrame（已繪製）。
 // 這個 spec 屬於效能 project（playwright.config.ts），其他測試全部跑完才執行，避免平行測試搶 CPU。
 //
-// 門檻：規格目標為 iPhone 實機 ≤ 300ms；此環境（headless WebKit）實測遠低於目標，所以直接以 300ms 為每一次量測的上限
-//（不另設寬鬆的回歸門檻）。實測數字寫入測試輸出（console 與 annotation）；實機數字仍需 iPhone 實機確認。
-const TARGET_MS = 300
+// 門檻：規格目標為 iPhone 實機 ≤ 300ms；本機（headless WebKit）實測遠低於目標，所以本機直接以 300ms 為每一次量測的上限。
+// CI（process.env.CI）改用 300ms × 2 = 600ms：GitHub Actions runner 明顯較慢，同一套 WebKit 捲動量測中
+// rAF 間隔中位數約為本機 2 倍（P3-3 baseline median：本機 30ms，CI 53–66ms）；本測試每次量測至少包含數個 rAF，
+// 時間隨機器速度等比放大。CI 實測 tab max 211ms、period max 251ms，已逼近 300ms，容易因 runner 負載波動而失敗。
+// 未採「相對同機 baseline」：報表切換的工作量（計算 + Recharts 重繪）很難找到等價且穩定的無關工作負載作為基準，
+// 空切換則不會改變畫面、無法套用同一套「更新完成」條件，且只剩少數 rAF，倍數會被雜訊主導；固定 2 倍較可預期。
+// 實測數字寫入測試輸出（console 與 annotation）；實機數字仍需 iPhone 實機確認。
+const SPEC_TARGET_MS = 300
+const CI_FACTOR = 2
+const TARGET_MS = process.env.CI ? SPEC_TARGET_MS * CI_FACTOR : SPEC_TARGET_MS
 
 test.describe.configure({ mode: 'serial' })
 // trace 會在每個動作錄製快照，干擾量測
