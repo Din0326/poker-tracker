@@ -98,6 +98,8 @@ test('8.8 資料與系統資訊：執行模式、持久儲存、資料量、上�
   await expect(page.getByTestId('info-data-count').locator('dd')).toHaveText('7 場 · 2 個場地 · 2 個盲注 · 手牌 0（完整 0 / 簡易 0）')
   await expect(page.getByTestId('info-last-backup').locator('dd')).toHaveText('從未備份')
   await expect(page.getByTestId('info-version').locator('dd')).toHaveText(pkg.version)
+  // v2 手牌紀錄完成後 App 版本號為 2.0.0（SPEC v1.5、SPEC-v2-hands v2.3 版本表）
+  expect(pkg.version).toBe('2.0.0')
 })
 
 test('8.8 主畫面 App 模式顯示「主畫面 App」', async ({ page }) => {

@@ -7,8 +7,8 @@ import { startStaticServer, type StaticServer } from './helpers/staticServer'
 // 建置兩個只有版本號不同的版本（JS 與 service worker precache 因此不同），以可切換資料夾的靜態伺服器
 // 先提供 v1、再改提供 v2，模擬「發布新版」。
 
-const V1 = { version: '1.0.0-p6.1', outDir: 'dist-p6-v1' }
-const V2 = { version: '1.0.0-p6.2', outDir: 'dist-p6-v2' }
+const V1 = { version: '2.0.0-p6.1', outDir: 'dist-p6-v1' }
+const V2 = { version: '2.0.0-p6.2', outDir: 'dist-p6-v2' }
 
 /**
  * 每個平行 worker 建置到各自的資料夾（以 parallelIndex 區分）：以 --repeat-each 等方式讓多個 worker 同時執行本檔時，
