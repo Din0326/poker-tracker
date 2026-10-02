@@ -28,13 +28,15 @@ import { buildLookup } from '../../src/features/sessions/sessionView'
 
 const TODAY = '2026-09-30'
 const seed = generateSeedData({ count: 300, seed: 20261003, today: TODAY })
+/** 上次備份時間：晚於所有場次的 updatedAt（備份後沒有新增或修改；與執行環境時區無關） */
+const LAST_BACKUP_AT = new Date(Math.max(...seed.sessions.map((s) => Date.parse(s.updatedAt))) + 60_000).toISOString()
 
 /** v1.4 正式版的 settings（3.5 的全部 key，含草稿與上次備份時間） */
 const settingsRows = [
   { key: 'lastType', value: 'cash' },
   { key: 'lastVenueByType', value: { cash: seed.venues[0]!.id, mtt: seed.venues[1]!.id, timed_mtt: null } },
   { key: 'lastStakeId', value: seed.stakes[0]!.id },
-  { key: 'lastBackupAt', value: '2026-09-29T23:10:00+08:00' },
+  { key: 'lastBackupAt', value: LAST_BACKUP_AT },
   { key: 'profitColorScheme', value: 'greenGain' },
   { key: 'recordDraft', value: { version: 2, type: 'mtt', venueTouched: true, values: { cashOut: '1200' }, backers: [] } },
 ]
@@ -157,7 +159,7 @@ describe('12.3 H5 v1.4 → v2 升級（Dexie version 2 → 3，具代表性的�
     expect(await db.hands.count()).toBe(0)
 
     // 遷移不更新 updatedAt → 不觸發備份提醒（備份後沒有新增或修改）
-    expect(shouldShowBackupReminder({ sessions: post.sessions, hands: post.hands, lastBackupAt: '2026-09-29T23:10:00+08:00', now: new Date(2026, 11, 31) })).toBe(false)
+    expect(shouldShowBackupReminder({ sessions: post.sessions, hands: post.hands, lastBackupAt: LAST_BACKUP_AT, now: new Date(2026, 11, 31) })).toBe(false)
 
     // 升級後匯出的備份為 schemaVersion 3、hands 為空陣列，且能通過新版的匯入驗證
     const backup = buildBackup(post, new Date(2026, 9, 3, 12, 0))

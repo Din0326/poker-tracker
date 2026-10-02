@@ -24,7 +24,8 @@ test('12.3 H5 v1.4 → v2 升級：v1.4 正式資料（version 2）載入新版�
     { key: 'lastType', value: 'mtt' },
     { key: 'lastVenueByType', value: { cash: data.venues[0]!.id, mtt: data.venues[1]!.id } },
     { key: 'lastStakeId', value: data.stakes[0]!.id },
-    { key: 'lastBackupAt', value: '2026-09-30T12:00:00+08:00' },
+    // 晚於所有場次的 updatedAt：備份後沒有新增或修改（遷移不得觸發備份提醒）
+    { key: 'lastBackupAt', value: new Date(Math.max(...sessions.map((s) => Date.parse(s.updatedAt))) + 60_000).toISOString() },
     { key: 'profitColorScheme', value: 'greenGain' },
   ]
 
