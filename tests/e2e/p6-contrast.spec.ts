@@ -4,6 +4,7 @@ import { waitForAnimations } from './helpers/layout'
 import { openRecordPage } from './helpers/record'
 import {
   dismissInstallBanner,
+  handExportStates,
   handListStates,
   handStates,
   p6States,
@@ -127,7 +128,7 @@ const checks: Check[] = [
       await expectContrastAA(page, s.name)
     },
   })),
-  ...[...stakingStates, ...settingsStates, ...p6States, ...handStates, ...handListStates].map<Check>((s) => ({
+  ...[...stakingStates, ...settingsStates, ...p6States, ...handStates, ...handListStates, ...handExportStates].map<Check>((s) => ({
     name: s.name,
     run: async (page) => {
       await s.setup(page)
