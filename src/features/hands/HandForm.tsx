@@ -24,6 +24,7 @@ import { describedBy } from '../../lib/aria'
 import { useAppData } from '../../lib/appData'
 import { registerDraftFlusher } from '../../lib/draftFlush'
 import { showGlobalToast } from '../../lib/globalToast'
+import { isNearPageBottom, prefersReducedMotion, revealLatest } from '../../lib/autoScroll'
 import { OBSCURES_BOTTOM_ATTR, useKeepFocusedVisible } from '../../lib/viewport'
 import { strings } from '../../strings'
 import { ActionBar, type ActionChoice } from './ActionBar'
@@ -213,6 +214,35 @@ export function HandForm({ mode, data, initial, baseline: initialBaseline, makeE
     focusable?.focus({ preventScroll: true })
   }, [scrollSeq])
 
+  // ---- 5.3 自動捲動（v2.4）：新增行動、復原上一步、確認公牌（含因此進入結果步驟）後，
+  // 把「最新一筆行動」到「底池資訊」捲到固定行動列之上。操作當下（狀態改變前）距頁面底部超過可視高度 1/3 時
+  // 視為使用者正在往上回看，不捲動 ----
+  const [autoScrollSeq, setAutoScrollSeq] = useState(0)
+  const requestAutoScroll = () => {
+    if (isNearPageBottom()) setAutoScrollSeq((n) => n + 1)
+  }
+  useEffect(() => {
+    if (autoScrollSeq === 0) return
+    // 等兩個 frame：畫面更新後，固定行動列的高度（ResizeObserver 寫入 --record-bar-offset，影響頁面底部內距）也已更新
+    let frame = requestAnimationFrame(() => {
+      frame = requestAnimationFrame(() => {
+        const container = containerRef.current
+        if (!container) return
+        const lines = container.querySelectorAll('[data-testid="log-line"]')
+        const streets = container.querySelectorAll('[data-log-street]')
+        const potInfos = container.querySelectorAll('[data-pot-info]')
+        const lastLine = lines[lines.length - 1]
+        const lastStreet = streets[streets.length - 1]
+        const bottom = potInfos[potInfos.length - 1]
+        // 最新一筆行動：最新一條街有行動時為最後一行，否則為該街區塊（含公牌）
+        const top = lastStreet && lastLine && lastStreet.contains(lastLine) ? lastLine : (lastStreet ?? lastLine)
+        if (!top || !bottom) return
+        revealLatest(top, bottom, { reducedMotion: prefersReducedMotion() })
+      })
+    })
+    return () => cancelAnimationFrame(frame)
+  }, [autoScrollSeq])
+
   // ---- 5.7 草稿：新增頁有任何輸入時，輸入停止 500ms 後寫入；回到預帶值時刪除（編輯模式不讀寫） ----
   const draftTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
   const pendingDraft = useRef<(() => void) | null>(null)
@@ -350,15 +380,19 @@ export function HandForm({ mode, data, initial, baseline: initialBaseline, makeE
   const startStreet = () => {
     if (!stage || !validate('board')) return
     clearErrors()
+    requestAutoScroll()
     setValues((v) => confirmBoard(v, deriveStage(v)))
   }
   const onAction = (choice: ActionChoice) => {
     if (!stage) return
     const next = addAction(values, stage, choice)
-    if (next) setValues(next)
+    if (!next) return
+    requestAutoScroll()
+    setValues(next)
   }
   const undo = () => {
     clearErrors()
+    requestAutoScroll()
     setValues(undoStep)
   }
 
