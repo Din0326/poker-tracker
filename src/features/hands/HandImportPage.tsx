@@ -93,15 +93,17 @@ export function HandImportPage() {
       setPhase({ kind: 'error', error: read.error })
       return
     }
-    const items = await parseImportTexts(read.texts, {
-      signal: controller.signal,
-      onProgress: (p) => !controller.signal.aborted && setPhase({ kind: 'parsing', done: p.done, total: p.total }),
-    })
-    if (items === null || controller.signal.aborted) return
+    let items: Awaited<ReturnType<typeof parseImportTexts>>
     let existing: Set<string>
     try {
+      items = await parseImportTexts(read.texts, {
+        signal: controller.signal,
+        onProgress: (p) => !controller.signal.aborted && setPhase({ kind: 'parsing', done: p.done, total: p.total }),
+      })
+      if (items === null || controller.signal.aborted) return
       existing = await repos.hands.existingSourceHandIds(parsedSourceHandIds(items))
     } catch {
+      if (controller.signal.aborted) return
       setPhase({ kind: 'error', error: 'readFailed' })
       return
     }

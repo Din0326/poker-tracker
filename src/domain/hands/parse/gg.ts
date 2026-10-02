@@ -119,13 +119,14 @@ export type GgRejectCode = GgRejectReason['code']
 
 const NLH_RE = new RegExp("hold'em no limit", 'i')
 
-/** 8.5 關鍵字表（依表格由上到下；header：只檢查標頭行，否則檢查整手原文；皆不分大小寫） */
-const KEYWORD_RULES: { code: GgRejectCode; header: boolean; test: (text: string) => boolean }[] = [
-  { code: 'omaha', header: true, test: (h) => /omaha|plo/i.test(h) },
-  { code: 'shortDeck', header: true, test: (h) => /short deck|6\+/i.test(h) },
-  { code: 'notNlh', header: true, test: (h) => !NLH_RE.test(h) },
+/** 8.5 關鍵字表的前三列（只檢查標頭行，不分大小寫；依表格由上到下） */
+const HEADER_RULES: { code: Extract<GgRejectCode, 'omaha' | 'shortDeck' | 'notNlh'>; test: (header: string) => boolean }[] = [
+  { code: 'omaha', test: (h) => /omaha|plo/i.test(h) },
+  { code: 'shortDeck', test: (h) => /short deck|6\+/i.test(h) },
+  { code: 'notNlh', test: (h) => !NLH_RE.test(h) },
 ]
 
+/** 8.5 其餘關鍵字（檢查整手原文，不分大小寫；依表格由上到下） */
 const BODY_KEYWORDS: { code: Extract<GgRejectCode, 'runItTwice' | 'evCashout' | 'insurance' | 'bombPot' | 'straddle' | 'missedBlind'>; re: RegExp }[] = [
   { code: 'runItTwice', re: /first flop|first turn|first river|second flop|second turn|second river|run it|two times/i },
   { code: 'evCashout', re: /cashout|cash out/i },
@@ -138,7 +139,7 @@ const BODY_KEYWORDS: { code: Extract<GgRejectCode, 'runItTwice' | 'evCashout' | 
 /** 8.5 關鍵字檢查（白名單解析之前），依表格順序取第一個符合者；都不符合時為 null */
 export function detectUnsupported(rawText: string): GgRejectReason | null {
   const header = rawText.split('\n', 1)[0] ?? ''
-  for (const rule of KEYWORD_RULES) if (rule.test(header)) return { code: rule.code } as GgRejectReason
+  for (const rule of HEADER_RULES) if (rule.test(header)) return { code: rule.code }
   const prefix = PREFIX_RE.exec(header)?.[1] ?? ''
   if (prefix.toUpperCase() === 'TM' || /tournament/i.test(header)) return { code: 'tournament' }
   if (prefix !== '' && !SUPPORTED_PREFIXES.has(prefix)) return { code: 'unknownPrefix', prefix }

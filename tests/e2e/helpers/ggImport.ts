@@ -49,6 +49,8 @@ export async function openImportFromList(page: Page): Promise<void> {
   await expect(heading(page)).toHaveText('手牌')
   await page.getByRole('link', { name: '匯入 GG 手牌' }).first().click()
   await expect(heading(page)).toHaveText('匯入 GG 手牌')
+  // 匯入頁為獨立 chunk：等載入完成（「選擇檔案」出現）
+  await expect(page.getByRole('button', { name: '選擇檔案' })).toBeVisible()
 }
 
 export async function chooseImportFiles(page: Page, files: UploadFile[]): Promise<void> {

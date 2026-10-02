@@ -1202,6 +1202,8 @@ async function importOneAndOpenDetail(page: Page) {
   await chooseImportFiles(page, [ggTxt('gg.txt', 1)])
   await page.getByRole('button', { name: '匯入 1 手' }).click()
   await page.getByTestId('hand-list-summary').waitFor()
+  // 等「已匯入 1 手」提示消失，詳情內容完整入鏡
+  await page.getByTestId('global-toast-text').waitFor({ state: 'hidden' })
   await page.getByTestId('hand-row').first().click()
   await page.getByTestId('detail-result').waitFor()
 }
