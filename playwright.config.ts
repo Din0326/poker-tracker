@@ -22,6 +22,12 @@ export default defineConfig({
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 1 : 0,
+  // 本機限制 worker 數：預設為 CPU 核心數的一半（24 核心機器約 24 個 worker），WebKit 同時開太多時 CPU 爭用嚴重，
+  // 每次都有不同的測試在 click 等操作上 30 秒逾時（單獨重跑皆通過）。
+  // 實測（24 核心，完整 npm run e2e，皆全數通過）：12 → 8.5m、8 → 8.6m、6 → 9.0m；
+  // 總耗時主要由序列的 heavy / perf project（約 6.3m）決定，主 project 約 2.2m / 2.3m / 2.7m。
+  // 取 8：耗時與 12 幾乎相同，但同時執行的瀏覽器少三分之一，爭用餘裕較大。CI 維持 Playwright 預設（2 核心 → 1 worker）。
+  workers: process.env.CI ? undefined : 8,
   reporter: process.env.CI ? 'github' : 'list',
   use: {
     baseURL: 'http://localhost:4173/',
