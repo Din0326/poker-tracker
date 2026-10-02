@@ -121,3 +121,22 @@ export function fixtureHands(updatedAt = TS): Hand[] {
     ),
   ]
 }
+
+export const H_PARTIAL = uuid(0x7007)
+
+/**
+ * 未完成的完整紀錄（3.9：屬簡易手牌、帶 detail）：7.9 範例打到翻牌 BB 過牌後暫存（詳情顯示「繼續補齊」）。
+ * 不在 fixtureHands 內，需要時另外寫入。
+ */
+export function partialHand(): Hand {
+  const base = example79Detail()
+  return build(
+    {
+      detail: { ...base, seats: base.seats.map((s) => (s.seatNo === 6 ? { ...s, cards: [] } : s)), actions: base.actions.slice(0, 7), rake: 0 },
+      board: ['Kh', '7d', '2c'],
+      sessionId: null,
+    },
+    H_PARTIAL,
+    7,
+  )
+}

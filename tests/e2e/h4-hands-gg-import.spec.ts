@@ -4,6 +4,7 @@ import { ggExample, ggExampleFile, withHandId } from '../unit/helpers/ggText'
 import {
   brokenZip,
   chooseImportFiles,
+  failThirdHandWrite,
   fixtureZip,
   ggTxt,
   importSummary,
@@ -180,35 +181,8 @@ test.describe('12.3 H4 解析進度、取消、寫入失敗整批還原（8.2）
   })
 
   test('12.3 H4 寫入失敗整批還原：寫入第 3 手時模擬 IndexedDB 錯誤 → 「匯入失敗，沒有任何手牌被寫入」，DB 沒有任何手牌', async ({ page }) => {
-    // 匯入在 Web Worker 寫入（ggImport.worker）：替換 Worker 建構子，先在 Worker 內讓 hands 表的第 3 次 add / put 丟出錯誤，
-    // 再載入原本的 Worker 模組（App 程式碼不含任何測試用分支）
-    await page.addInitScript(() => {
-      const Original = window.Worker
-      window.Worker = class extends Original {
-        constructor(url: string | URL, options?: WorkerOptions) {
-          const href = new URL(String(url), location.href).href
-          if (!href.includes('ggImport.worker')) {
-            super(url, options)
-            return
-          }
-          const src = `
-            const queue = []
-            self.onmessage = (e) => queue.push(e)
-            let n = 0
-            for (const m of ['add', 'put']) {
-              const orig = IDBObjectStore.prototype[m]
-              IDBObjectStore.prototype[m] = function (...args) {
-                if (this.name === 'hands' && ++n === 3) throw new DOMException('injected', 'QuotaExceededError')
-                return orig.apply(this, args)
-              }
-            }
-            await import(${JSON.stringify(href)})
-            for (const e of queue) self.onmessage(e)
-          `
-          super(URL.createObjectURL(new Blob([src], { type: 'text/javascript' })), { type: 'module' })
-        }
-      }
-    })
+    // 匯入在 Web Worker 寫入（ggImport.worker）：在 Worker 內讓 hands 表的第 3 次 add / put 丟出錯誤（見 helpers/ggImport.ts）
+    await failThirdHandWrite(page)
     await openImport(page)
     await chooseImportFiles(page, [ggTxt('gg.txt', 5)])
     await expect(importSummary(page)).toHaveText('可匯入 5 手 · 重複略過 0 手 · 無法匯入 0 手')

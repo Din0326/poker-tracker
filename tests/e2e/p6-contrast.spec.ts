@@ -6,6 +6,7 @@ import {
   dismissInstallBanner,
   handExportStates,
   ggImportStates,
+  h5States,
   handListStates,
   handStates,
   p6States,
@@ -20,6 +21,7 @@ import {
 // 10.3 P6「深色與淺色主題下所有畫面對比度達 AA」的自動化驗收（使用者決定以自動化取代實機）：
 // 以 axe-core 的 color-contrast 規則（WCAG 2 AA：一般文字 4.5:1、大字 3:1）檢查所有畫面與狀態，深淺色各一輪。
 // 畫面狀態與截圖共用 helpers/screenStates.ts；不排除規則、不略過元素。
+// SPEC-v2-hands 12.3 H5 第 3 項：v2 手牌全部畫面（handStates、handListStates、handExportStates、ggImportStates、h5States）同樣深淺色各一輪。
 
 // heavy：寫入大量資料的狀態，加上 @heavy tag，在序列執行的 heavy project 跑（見 playwright.config.ts）
 type Check = { name: string; heavy?: boolean; run: (page: Page) => Promise<void> }
@@ -130,7 +132,7 @@ const checks: Check[] = [
       await expectContrastAA(page, s.name)
     },
   })),
-  ...[...stakingStates, ...settingsStates, ...p6States, ...handStates, ...handListStates, ...handExportStates, ...ggImportStates].map<Check>((s) => ({
+  ...[...stakingStates, ...settingsStates, ...p6States, ...handStates, ...handListStates, ...handExportStates, ...ggImportStates, ...h5States].map<Check>((s) => ({
     name: s.name,
     heavy: 'heavy' in s && s.heavy === true,
     run: async (page) => {
