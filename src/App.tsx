@@ -23,6 +23,8 @@ const ReportPage = lazy(() => import('./features/report/ReportPage').then((m) =>
 // v2 手牌的新增 / 編輯頁（SPEC-v2-hands 第 5 節）同樣拆成獨立 chunk，不增加首頁（新增場次）的載入量
 const HandNewPage = lazy(() => import('./features/hands/HandNewPage').then((m) => ({ default: m.HandNewPage })))
 const HandEditPage = lazy(() => import('./features/hands/HandEditPage').then((m) => ({ default: m.HandEditPage })))
+// 匯入 GG 手牌（SPEC-v2-hands 8.2）：獨立 chunk；zip 解壓的 fflate 再於選了 .zip 時才 dynamic import（第 2 節）
+const HandImportPage = lazy(() => import('./features/hands/HandImportPage').then((m) => ({ default: m.HandImportPage })))
 
 function LoadingPage({ title, backTo }: { title: string; backTo?: string }) {
   return (
@@ -63,8 +65,16 @@ const routes: RouteObject[] = [
       { path: 'sessions', element: <SessionsPage /> },
       { path: 'sessions/:id', element: <SessionDetailPage /> },
       { path: 'sessions/:id/edit', element: <SessionEditPage /> },
-      // v2 手牌（SPEC-v2-hands 5.1）：列表為「手牌」頁籤的根畫面，新增、詳情、編輯為推入式子頁；匯入頁於 H4 加入
+      // v2 手牌（SPEC-v2-hands 5.1）：列表為「手牌」頁籤的根畫面，新增、詳情、編輯、匯入為推入式子頁
       { path: 'hands', element: <HandsRoute /> },
+      {
+        path: 'hands/import',
+        element: (
+          <Suspense fallback={<LoadingPage title={strings.pages.handImport} backTo="/hands" />}>
+            <HandImportPage />
+          </Suspense>
+        ),
+      },
       { path: 'hands/:id', element: <HandDetailPage /> },
       {
         path: 'hands/new',

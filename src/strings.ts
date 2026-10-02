@@ -178,6 +178,7 @@ export const strings = {
     handEdit: '編輯手牌',
     hands: '手牌',
     handDetail: '手牌詳情',
+    handImport: '匯入 GG 手牌',
   },
   // 期間選擇（4.5；報表 6.1 與紀錄列表 7.1 共用）
   period: {
@@ -712,6 +713,78 @@ export const strings = {
       copy: '複製',
       copied: '已複製',
       copyFailed: '複製失敗，請再試一次',
+    },
+    // SPEC-v2-hands 第 8 節 GG 匯入（實驗功能）、6.2「原始文字」
+    ggImport: {
+      title: '匯入 GG 手牌',
+      experimental: '實驗功能',
+      intro: 'GG 手牌格式依公開資料撰寫，尚未以真實檔案驗證。不支援的手牌會略過並說明原因，匯入後請抽查結果。',
+      /** 手牌列表右上角（6.1）與空狀態、設定頁的入口（5.1、10.6） */
+      listButton: '匯入',
+      listButtonLabel: '匯入 GG 手牌',
+      emptyButton: '匯入 GG 手牌',
+      settingsEntry: '匯入 GG 手牌（實驗功能）',
+      chooseFiles: '選擇檔案',
+      fileHint: '可選一或多個 .txt，或 PokerCraft 下載的 .zip',
+      reading: '讀取檔案中…',
+      /** 8.2「解析中 1,200 / 3,500 手」 */
+      parsing: (done: string, total: string) => `解析中 ${done} / ${total} 手`,
+      progressLabel: '解析進度',
+      cancel: '取消',
+      cancelled: '已取消，沒有寫入任何手牌',
+      errors: {
+        tooLarge: '檔案太大，一次最多 50 MB，請分批匯入',
+        tooManyEntries: '壓縮檔內的檔案太多（最多 1,000 個）',
+        unzipFailed: '無法解壓縮這個檔案',
+        readFailed: '無法讀取檔案，請再試一次',
+      },
+      chooseAgain: '重新選擇檔案',
+      /** 8.2「可匯入 3,320 手 · 重複略過 150 手 · 無法匯入 30 手」 */
+      previewSummary: (ok: string, duplicates: string, rejected: string) => `可匯入 ${ok} 手 · 重複略過 ${duplicates} 手 · 無法匯入 ${rejected} 手`,
+      rejectedTitle: '無法匯入的原因',
+      /** 原因分組「不支援 Run It Twice：12 手」 */
+      groupLine: (reason: string, n: string) => `${reason}：${n} 手`,
+      showSamples: (n: string) => `查看前 ${n} 筆明細`,
+      /** 取不到原站手牌編號時「第 3 個檔案第 18 手」 */
+      sampleWhere: (file: number, hand: number) => `第 ${file} 個檔案第 ${hand} 手`,
+      sampleLine: (who: string, reason: string) => `${who} · ${reason}`,
+      sessionHint: '選擇的場次會套用到這次匯入的所有手牌；只列出現金桌場次',
+      importButton: (n: string) => `匯入 ${n} 手`,
+      importing: '匯入中…',
+      back: '返回',
+      failed: '匯入失敗，沒有任何手牌被寫入',
+      done: (n: string) => `已匯入 ${n} 手`,
+      // 8.5 不支援的情況與第 8 節的拒絕原因（文字照規格）
+      reasons: {
+        tooLong: '手牌內容過長',
+        omaha: '不支援 Omaha（PLO），第一版只支援無限注德州撲克',
+        shortDeck: '不支援短牌（Short Deck）',
+        notNlh: '只支援無限注德州撲克',
+        tournament: '錦標賽手牌暫不支援匯入',
+        unknownPrefix: (prefix: string) => `不支援的牌局類型（前綴 ${prefix}）`,
+        runItTwice: '不支援 Run It Twice（發兩次牌）',
+        evCashout: '不支援 EV Cashout',
+        insurance: '不支援保險',
+        bombPot: '不支援 Bomb Pot',
+        straddle: '不支援 straddle（待真實檔案確認格式）',
+        missedBlind: '不支援補盲（missed / dead blind）',
+        tooManyDecimals: '金額超過 2 位小數',
+        stackTooSmall: '不支援玩家籌碼不足以支付盲注或前注的手牌',
+        sidePot: '包含邊池，第一版暫不支援匯入',
+        tableSize: '不支援的牌桌人數',
+        unrecognizedLine: '無法辨識的內容',
+        illegalAction: '行動不合法',
+        /** 「無法辨識的內容：第 N 行」「行動不合法：第 N 行」 */
+        withLine: (reason: string, line: number) => `${reason}：第 ${line} 行`,
+        potMismatch: '底池金額對不上',
+        duplicateCard: '同一張牌不可重複出現',
+        incomplete: '手牌內容不完整',
+        noHero: '無法判定你的座位',
+        winnerMismatch: '輸贏與牌力判定不符',
+      },
+      // 6.2 GG 手牌的「原始文字」
+      rawText: '原始文字',
+      rawTextLabel: 'GG 原始手牌文字',
     },
     // SPEC-v2-hands 6.3 場次詳情的手牌區塊
     sessionSection: {

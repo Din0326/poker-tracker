@@ -134,12 +134,28 @@ export function createHandRepo(db: PokerDb, options?: RepoOptions) {
     return validateHand({ ...fixed, ...finalizeHandContent(toContent(input)) })
   }
 
-  /** 一次新增多手（同一個 transaction；任何錯誤整批還原） */
-  async function createMany(inputs: readonly HandInput[]): Promise<Hand[]> {
+  /** source 為 gg 且 sourceHandId 在 ids 中的既有手牌的 sourceHandId（8.6 去重，以 sourceHandId 索引查詢） */
+  async function existingSourceHandIds(ids: readonly string[]): Promise<Set<string>> {
+    if (ids.length === 0) return new Set()
+    const found = await db.hands.where('sourceHandId').anyOf([...ids]).toArray()
+    return new Set(found.filter((h) => h.source === 'gg' && h.sourceHandId !== null).map((h) => h.sourceHandId!))
+  }
+
+  /**
+   * 一次新增多手（同一個 transaction；任何錯誤整批還原）。
+   * skipExistingSourceHandIds（GG 匯入，8.6）：在同一個 transaction 內再查一次去重，略過已存在的 sourceHandId
+   * （預覽之後才由其他分頁匯入的同一手不會重複寫入）；回傳實際寫入的手牌。
+   */
+  async function createMany(inputs: readonly HandInput[], options: { skipExistingSourceHandIds?: boolean } = {}): Promise<Hand[]> {
     const ts = toIsoWithOffset(ctx.now())
     // 先以暫時的 exportSeq 驗證內容（exportSeq 不影響其他欄位），避免在 transaction 內做大量計算
-    const drafts = inputs.map((input) => build(input, { id: ctx.uuid(), exportSeq: 1, createdAt: ts, updatedAt: ts }))
+    const all = inputs.map((input) => build(input, { id: ctx.uuid(), exportSeq: 1, createdAt: ts, updatedAt: ts }))
     return db.transaction('rw', db.hands, db.sessions, db.settings, async () => {
+      let drafts = all
+      if (options.skipExistingSourceHandIds) {
+        const existing = await existingSourceHandIds(all.flatMap((h) => (h.sourceHandId === null ? [] : [h.sourceHandId])))
+        drafts = all.filter((h) => h.sourceHandId === null || !existing.has(h.sourceHandId))
+      }
       const checked = new Set<string>()
       for (const h of drafts) {
         const key = `${h.sessionId}|${h.gameType}`
@@ -163,6 +179,9 @@ export function createHandRepo(db: PokerDb, options?: RepoOptions) {
 
     /** 一次新增多手。供 GG 匯入（H4）與開發用 seed */
     createMany,
+
+    /** 8.6 GG 匯入去重：已存在的 sourceHandId */
+    existingSourceHandIds,
 
     /**
      * 編輯：id、exportSeq、createdAt、source 不變，更新 updatedAt，重新判定 kind 與摘要（5.8）。
