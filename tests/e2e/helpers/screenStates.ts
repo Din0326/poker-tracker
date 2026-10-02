@@ -1,4 +1,4 @@
-import type { Page } from '@playwright/test'
+import { test, type Page } from '@playwright/test'
 import dayjs from 'dayjs'
 import { generateSeedData } from '../../../src/dev/seed'
 import {
@@ -29,6 +29,7 @@ import {
   stakedFixture,
   stakedSessions,
   stakes,
+  uuid,
   venues,
 } from './sessions'
 import {
@@ -1072,6 +1073,91 @@ export const handListStates: { name: string; setup: (page: Page) => Promise<void
       await page.getByRole('region', { name: '手牌' }).getByRole('button', { name: '儲存' }).click()
       await page.getByText('不可使用 Villain 加數字的名稱').waitFor()
       await scrollToHeading(page, '手牌')
+    },
+  },
+]
+
+// ---- H3 匯出：列表與詳情的匯出入口、匯出 sheet 各狀態、查看匯出文字（SPEC-v2-hands 第 7 節、6.2） ----
+
+/** 超過 10,000 手的狀態：以 7.9 手牌複製出 10,001 手完整手牌（id、exportSeq 不同；列表只需摘要欄位即可判斷超過上限） */
+async function seedManyCompleteHands(page: Page, count: number) {
+  await seed(page)
+  const base = fixtureHands()[0]!
+  const hands = Array.from({ length: count }, (_, i) => ({ ...base, id: uuid(0x100000 + i), exportSeq: 1000 + i, sessionId: null, tags: [], note: null }))
+  for (let i = 0; i < hands.length; i += 1000) await putRecords(page, 'hands', hands.slice(i, i + 1000))
+}
+
+const exportDialog = (page: Page) => page.getByRole('dialog', { name: '匯出手牌' })
+
+/** heavy：需要寫入大量資料（≥ 1,000 筆）的狀態，對比度檢查會加上 @heavy tag，移到序列執行的 project */
+export const handExportStates: { name: string; heavy?: boolean; setup: (page: Page) => Promise<void> }[] = [
+  {
+    // 列表右上角「＋ 新增手牌」「匯出」
+    name: 'hands-export-entry',
+    setup: async (page) => {
+      await seedHands(page)
+      await openHandsTab(page)
+    },
+  },
+  {
+    // 詳情的「匯出這手」「查看匯出文字」
+    name: 'hand-detail-export-actions',
+    setup: async (page) => {
+      await openHandDetailAt(page, H_79)
+      await page.getByRole('button', { name: '匯出這手' }).evaluate((el) => window.scrollTo(0, el.getBoundingClientRect().top + window.scrollY - 200))
+    },
+  },
+  {
+    // 簡易手牌略過說明 + GTO Wizard 提示
+    name: 'hand-export-sheet',
+    setup: async (page) => {
+      await seedHands(page)
+      await openHandsTab(page)
+      await page.getByRole('button', { name: '匯出目前篩選結果的完整手牌' }).click()
+      await exportDialog(page).getByTestId('export-gto-hint').waitFor()
+    },
+  },
+  {
+    name: 'hand-export-sheet-empty',
+    setup: async (page) => {
+      await seedHands(page)
+      await openHandsTab(page)
+      await page.getByLabel('紀錄類型').selectOption({ label: '簡易' })
+      await page.getByTestId('hand-list-summary').filter({ hasText: '完整 0 手' }).waitFor()
+      await page.getByRole('button', { name: '匯出目前篩選結果的完整手牌' }).click()
+      await exportDialog(page).getByTestId('export-none').waitFor()
+    },
+  },
+  {
+    name: 'hand-export-sheet-too-many',
+    // 寫入 10,001 手、列表載入 10,001 手：在序列執行的 heavy project 跑（見 playwright.config.ts），避免與平行測試搶 CPU
+    heavy: true,
+    setup: async (page) => {
+      // putRecords 在 Worker 中寫入，10,001 手約 2.5 秒（主執行緒寫入時約 2.5 分鐘，見 helpers/idb.ts）；
+      // 列表載入與統計 10,001 手仍較慢，保留較寬的逾時
+      test.setTimeout(120_000)
+      await seedManyCompleteHands(page, 10_001)
+      await openHandsTab(page)
+      await page.getByTestId('hand-list-summary').filter({ hasText: '10001' }).waitFor({ timeout: 60_000 })
+      await page.getByRole('button', { name: '匯出目前篩選結果的完整手牌' }).click()
+      await exportDialog(page).getByTestId('export-too-many').waitFor()
+    },
+  },
+  {
+    // 詳情「匯出這手」：單手、符合 GTO Wizard 格式
+    name: 'hand-export-sheet-single',
+    setup: async (page) => {
+      await openHandDetailAt(page, H_79)
+      await page.getByRole('button', { name: '匯出這手' }).click()
+      await exportDialog(page).getByTestId('export-count').waitFor()
+    },
+  },
+  {
+    name: 'hand-export-text',
+    setup: async (page) => {
+      await openHandDetailAt(page, H_79)
+      await page.getByRole('button', { name: '查看匯出文字' }).click()
+      await page.getByRole('dialog', { name: '匯出文字' }).getByTestId('export-text').waitFor()
     },
   },
 ]

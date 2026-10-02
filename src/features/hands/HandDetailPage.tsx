@@ -1,16 +1,19 @@
-import { ChevronRight, Pencil, Trash } from 'lucide-react'
+import { ChevronRight, FileText, Pencil, Share, Trash } from 'lucide-react'
 import { useEffect, useState, type ReactNode } from 'react'
 import { Link, useLocation, useNavigate, useParams } from 'react-router'
 import { BottomSheet } from '../../components/BottomSheet'
 import { Page } from '../../components/Page'
 import { dangerButtonClass, secondaryButtonClass } from '../../components/controlStyles'
 import { formatTimestamp } from '../../domain'
-import { formatHandAmount, positionText, type Hand } from '../../domain/hands'
+import { DEFAULT_HERO_NAME, exportPokerStars, formatHandAmount, isExportable, positionText, type Hand } from '../../domain/hands'
 import { useAppData } from '../../lib/appData'
 import { hideGlobalToast, showGlobalToast } from '../../lib/globalToast'
 import { strings } from '../../strings'
 import { buildLookup, rowDate, sessionTitle } from '../sessions/sessionView'
 import { CardList } from './CardFace'
+import { HandExportSheet } from './HandExportSheet'
+import { HandExportTextSheet } from './HandExportTextSheet'
+import { exportRequestFor } from './handExportModel'
 import { buildHandDetailView, handHeadlineResult, handSummaryText, playedAtText, type HandDetailView } from './handDetailView'
 import { handResultText, handRowBadges, signedTextClass } from './handListModel'
 import { HANDS_PATH, handCompletePath, handEditPath } from './handPaths'
@@ -21,7 +24,8 @@ const d = t.detail
 const UNDO_TOAST_MS = 5000
 const ERROR_TOAST_MS = 5000
 
-type Loaded = { hand: Hand; sessionLabel: string | null }
+/** heroName：Settings.handHeroName（未設定時為 Hero），供「查看匯出文字」使用（7.3） */
+type Loaded = { hand: Hand; sessionLabel: string | null; heroName: string }
 type LoadState = { status: 'loading' } | { status: 'error' } | { status: 'notFound' } | { status: 'ready'; data: Loaded }
 
 const cardClass = 'rounded-(--radius-card) border border-(--color-border) bg-(--color-surface)'
@@ -185,16 +189,20 @@ function HandDetail({ id }: { id: string }) {
   const [attempt, setAttempt] = useState(0)
   const [sheet, setSheet] = useState(false)
   const [busy, setBusy] = useState(false)
+  // 7.1「匯出這手」、6.2「查看匯出文字」
+  const [exportOpen, setExportOpen] = useState(false)
+  const [textOpen, setTextOpen] = useState(false)
 
   useEffect(() => {
     let cancelled = false
     const load = async (): Promise<Loaded | null> => {
-      const hand = await repos.hands.get(id)
+      const [hand, savedHeroName] = await Promise.all([repos.hands.get(id), repos.settings.get('handHeroName')])
       if (!hand) return null
-      if (hand.sessionId === null) return { hand, sessionLabel: null }
+      const heroName = savedHeroName ?? DEFAULT_HERO_NAME
+      if (hand.sessionId === null) return { hand, sessionLabel: null, heroName }
       const [session, venues, stakes] = await Promise.all([repos.sessions.get(hand.sessionId), repos.venues.list(), repos.stakes.list()])
       const sessionLabel = session ? t.sessionOption(rowDate(session), sessionTitle(session, buildLookup(venues, stakes))) : null
-      return { hand, sessionLabel }
+      return { hand, sessionLabel, heroName }
     }
     load().then(
       (data) => !cancelled && setState(data ? { status: 'ready', data } : { status: 'notFound' }),
@@ -246,7 +254,8 @@ function HandDetail({ id }: { id: string }) {
     )
   }
 
-  const { hand, sessionLabel } = state.data
+  const { hand, sessionLabel, heroName } = state.data
+  const exportable = isExportable(hand)
   const view = buildHandDetailView(hand)
   const headline = handHeadlineResult(hand)
   const badges = handRowBadges({ ...hand, hasDetail: hand.detail !== null })
@@ -380,6 +389,19 @@ function HandDetail({ id }: { id: string }) {
             {t.completeFromSimple}
           </Link>
         )}
+        {/* 6.2：匯出這手、查看匯出文字只在完整手牌顯示（7.1） */}
+        {exportable && (
+          <button type="button" onClick={() => setExportOpen(true)} className={actionClass}>
+            <Share aria-hidden="true" size={18} />
+            {t.export.exportThis}
+          </button>
+        )}
+        {exportable && (
+          <button type="button" onClick={() => setTextOpen(true)} className={actionClass}>
+            <FileText aria-hidden="true" size={18} />
+            {t.export.viewText}
+          </button>
+        )}
         <button type="button" disabled={busy} onClick={() => setSheet(true)} className={`${dangerButtonClass} w-full gap-2`}>
           <Trash aria-hidden="true" size={18} />
           {d.delete}
@@ -395,6 +417,9 @@ function HandDetail({ id }: { id: string }) {
         <span className="block">{strings.sessions.detail.createdAt(formatTimestamp(hand.createdAt))}</span>
         <span className="block">{strings.sessions.detail.updatedAt(formatTimestamp(hand.updatedAt))}</span>
       </p>
+
+      {exportOpen && <HandExportSheet request={exportRequestFor([hand], true)} onClose={() => setExportOpen(false)} />}
+      {textOpen && <HandExportTextSheet text={exportPokerStars([hand], heroName)} onClose={() => setTextOpen(false)} />}
 
       {/* 6.4 刪除確認：時間、Hero 手牌、位置、結果 */}
       <BottomSheet open={sheet} title={t.deleteSheet.title} onClose={() => setSheet(false)}>

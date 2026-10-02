@@ -32,31 +32,44 @@ function valueOf(categoryIndex: number, ranks: readonly number[]): HandValue {
   return { category: HAND_CATEGORIES[categoryIndex] as HandCategory, ranks: [...ranks], score }
 }
 
-/** 5 張牌的牌力 */
+/**
+ * 5 張牌的牌力。
+ * H3 效能調整（11.1 匯出 10,000 手 ≤ 3 秒）：以計數陣列取代 Map / Set / 排序字串，結果與原寫法逐一相同。
+ */
 export function evaluateFive(cards: readonly Card[]): HandValue {
   const ranks = cards.map(rankValue).sort((a, b) => b - a)
-  const flush = cards.every((c) => suitOf(c) === suitOf(cards[0]!))
-  const unique = [...new Set(ranks)]
+  const suit0 = suitOf(cards[0]!)
+  const flush = cards.every((c) => suitOf(c) === suit0)
+  // 點數計數（索引 2–14）
+  const counts = new Array<number>(15).fill(0)
+  for (const r of ranks) counts[r]!++
+  // 依「張數多 → 點數大」的點數群組
+  const quads: number[] = []
+  const trips: number[] = []
+  const pairs: number[] = []
+  const singles: number[] = []
+  for (let r = 14; r >= 2; r--) {
+    const n = counts[r]!
+    if (n === 4) quads.push(r)
+    else if (n === 3) trips.push(r)
+    else if (n === 2) pairs.push(r)
+    else if (n === 1) singles.push(r)
+  }
+  const byGroup = [...quads, ...trips, ...pairs, ...singles]
   let straightTop = 0
-  if (unique.length === 5) {
+  if (singles.length === 5) {
     if (ranks[0]! - ranks[4]! === 4) straightTop = ranks[0]!
     else if (ranks[0] === 14 && ranks[1] === 5) straightTop = 5 // A-2-3-4-5
   }
-  // 依「張數多 → 點數大」排序的點數群組
-  const counts = new Map<number, number>()
-  for (const r of ranks) counts.set(r, (counts.get(r) ?? 0) + 1)
-  const groups = [...counts.entries()].sort((a, b) => b[1] - a[1] || b[0] - a[0])
-  const byGroup = groups.map(([r]) => r)
-  const shape = groups.map(([, n]) => n).join('')
 
   if (straightTop && flush) return valueOf(8, [straightTop])
-  if (shape === '41') return valueOf(7, byGroup)
-  if (shape === '32') return valueOf(6, byGroup)
+  if (quads.length === 1) return valueOf(7, byGroup)
+  if (trips.length === 1 && pairs.length === 1) return valueOf(6, byGroup)
   if (flush) return valueOf(5, ranks)
   if (straightTop) return valueOf(4, [straightTop])
-  if (shape === '311') return valueOf(3, byGroup)
-  if (shape === '221') return valueOf(2, byGroup)
-  if (shape === '2111') return valueOf(1, byGroup)
+  if (trips.length === 1) return valueOf(3, byGroup)
+  if (pairs.length === 2) return valueOf(2, byGroup)
+  if (pairs.length === 1) return valueOf(1, byGroup)
   return valueOf(0, ranks)
 }
 

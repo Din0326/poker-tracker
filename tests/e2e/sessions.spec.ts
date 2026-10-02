@@ -616,7 +616,8 @@ test('P3-5 複製：新增頁已有草稿時先確認「覆蓋目前的草稿？
   await expect(page.getByLabel('名稱', { exact: true })).toHaveValue('Summer Cup')
 })
 
-test('9.1 從詳情返回列表時恢復已載入的筆數與捲動位置（1,000 筆，分批載入 3 批以上）', async ({ page }) => {
+// 寫入 1,000 筆並捲動載入 300 列：@heavy，在序列執行的 heavy project 跑（見 playwright.config.ts）
+test('9.1 從詳情返回列表時恢復已載入的筆數與捲動位置（1,000 筆，分批載入 3 批以上）', { tag: '@heavy' }, async ({ page }) => {
   test.setTimeout(120_000)
   await seed(page, generateSeedData({ count: 1000, today: dayjs().format('YYYY-MM-DD') }))
   await nav(page).getByRole('link', { name: '紀錄' }).click()

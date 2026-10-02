@@ -685,6 +685,34 @@ export const strings = {
       confirm: '刪除',
       failed: '刪除失敗，請再試一次',
     },
+    // SPEC-v2-hands 7.1 匯出、6.2 查看匯出文字
+    export: {
+      /** 手牌列表右上角（6.1） */
+      listButton: '匯出',
+      listButtonLabel: '匯出目前篩選結果的完整手牌',
+      /** 手牌詳情（6.2） */
+      exportThis: '匯出這手',
+      viewText: '查看匯出文字',
+      sheetTitle: '匯出手牌',
+      preparing: '準備中…',
+      willExport: (n: string) => `將匯出 ${n} 手完整手牌`,
+      skippedSimple: (n: string) => `簡易手牌 ${n} 手無法匯出，已略過`,
+      none: '沒有可匯出的完整手牌',
+      tooMany: '一次最多匯出 10,000 手，請縮小篩選範圍',
+      /** 7.8 GTO Wizard 支援提示 */
+      gtoHint: (n: string) => `其中 ${n} 手的牌局格式（例如 9 人桌現金桌）GTO Wizard 可能無法分析，仍會一併匯出`,
+      share: '分享 / 下載',
+      sharing: '匯出中…',
+      done: (n: string) => `已匯出 ${n} 手`,
+      /** 失去使用者手勢（NotAllowedError）時（7.1） */
+      retry: '檔案已準備好，請再按一次「分享 / 下載」',
+      failed: '匯出失敗，請再試一次',
+      textTitle: '匯出文字',
+      textLabel: 'PokerStars 格式的匯出文字',
+      copy: '複製',
+      copied: '已複製',
+      copyFailed: '複製失敗，請再試一次',
+    },
     // SPEC-v2-hands 6.3 場次詳情的手牌區塊
     sessionSection: {
       title: (n: number) => `手牌（${n}）`,

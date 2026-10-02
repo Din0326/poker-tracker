@@ -198,6 +198,12 @@ export function createHandRepo(db: PokerDb, options?: RepoOptions) {
       return db.hands.get(id)
     },
 
+    /** 依 id 一次讀取多手（7.1 匯出：sheet 開啟時讀取篩選結果的完整手牌）；不存在的 id 略過，順序同輸入 */
+    async getMany(ids: readonly string[]): Promise<Hand[]> {
+      const found = await db.hands.bulkGet([...ids])
+      return found.filter((h): h is Hand => h !== undefined)
+    },
+
     /** 全部手牌（未排序） */
     async list(): Promise<Hand[]> {
       return db.hands.toArray()

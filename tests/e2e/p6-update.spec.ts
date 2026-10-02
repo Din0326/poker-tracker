@@ -10,6 +10,14 @@ import { startStaticServer, type StaticServer } from './helpers/staticServer'
 const V1 = { version: '1.0.0-p6.1', outDir: 'dist-p6-v1' }
 const V2 = { version: '1.0.0-p6.2', outDir: 'dist-p6-v2' }
 
+/**
+ * 每個平行 worker 建置到各自的資料夾（以 parallelIndex 區分）：以 --repeat-each 等方式讓多個 worker 同時執行本檔時，
+ * 各 worker 的 beforeAll 會同時建置；若共用同一資料夾，vite 清空輸出資料夾與寫檔會互相干擾而建置失敗。
+ */
+function withWorkerDir(v: { version: string; outDir: string }, parallelIndex: number) {
+  return { version: v.version, outDir: `${v.outDir}-w${parallelIndex}` }
+}
+
 /** 以 vite.config.ts 支援的測試用環境變數建置到指定資料夾 */
 function build({ version, outDir }: { version: string; outDir: string }): Promise<void> {
   return new Promise((resolve, reject) => {
@@ -27,7 +35,8 @@ test.describe.configure({ mode: 'serial' })
 
 test.beforeAll(async () => {
   test.setTimeout(240_000)
-  await Promise.all([build(V1), build(V2)])
+  const { parallelIndex } = test.info()
+  await Promise.all([build(withWorkerDir(V1, parallelIndex)), build(withWorkerDir(V2, parallelIndex))])
 })
 
 const buyIn = (page: Page) => page.getByLabel('買入（含服務費）', { exact: true })
@@ -45,7 +54,9 @@ test('P6-3 發布新版後出現更新提示（不自動重整），按重新載
   page,
 }) => {
   test.setTimeout(120_000)
-  let server: StaticServer | null = await startStaticServer(V1.outDir)
+  const v1Dir = withWorkerDir(V1, test.info().parallelIndex).outDir
+  const v2Dir = withWorkerDir(V2, test.info().parallelIndex).outDir
+  let server: StaticServer | null = await startStaticServer(v1Dir)
   try {
     // 1. 載入 v1，等 service worker 安裝並控制頁面
     await page.goto(server.url)
@@ -68,7 +79,7 @@ test('P6-3 發布新版後出現更新提示（不自動重整），按重新載
     expect(JSON.stringify((await readSettings(page)).recordDraft)).toContain('P6 更新測試')
 
     // 3. 發布新版：伺服器改提供 v2，觸發 service worker 更新檢查
-    server.setRoot(V2.outDir)
+    server.setRoot(v2Dir)
     // 標記目前這次載入；若 App 自動重整，標記會消失
     await page.evaluate(() => {
       ;(window as unknown as { __p6Marker?: number }).__p6Marker = 1
@@ -94,7 +105,10 @@ test('P6-3 發布新版後出現更新提示（不自動重整），按重新載
     await expect(buyIn(page)).toHaveValue('3,400')
 
     // 4. 按「重新載入」：新 SW 接手後重整頁面
-    await reloadButton.click()
+    // 按下後 App 才非同步地寫入草稿 → SKIP_WAITING → 新 SW 接手 → window.location.reload()，
+    // 導航發生的時間點不固定；若在導航途中 page.evaluate 會因執行環境被銷毀而丟錯（expect.poll 不會吞掉這個錯誤）。
+    // 因此先同時等待重整後新頁面的 load 事件，導航完成後才做後續的 evaluate 與斷言。
+    await Promise.all([page.waitForEvent('load', { timeout: 30_000 }), reloadButton.click()])
     await expect
       .poll(() => page.evaluate(() => (window as unknown as { __p6Marker?: number }).__p6Marker ?? null), {
         timeout: 30_000,

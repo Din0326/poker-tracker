@@ -6,6 +6,7 @@ import { toLocalDate } from '../../domain'
 import { useAppData } from '../../lib/appData'
 import { strings } from '../../strings'
 import { buildLookup, rowDate, sessionTitle } from '../sessions/sessionView'
+import { HandExportSheet } from './HandExportSheet'
 import { HandFilterBar } from './HandFilterBar'
 import { HandList } from './HandList'
 import {
@@ -17,6 +18,7 @@ import {
   tagFilterOptions,
   type HandListFilters,
 } from './handListModel'
+import { exportRequestFor, type ExportRequest } from './handExportModel'
 import { HAND_BATCH_SIZE, memoryFor, rememberFilters, rememberVisible } from './handsListMemory'
 import { HANDS_PATH, handNewPath, sessionIdFromSearch } from './handPaths'
 import { refreshHands, retryHands, useHandsState } from './handsStore'
@@ -24,15 +26,25 @@ import { refreshHands, retryHands, useHandsState } from './handsStore'
 const t = strings.hands.list
 const KEYWORD_DEBOUNCE_MS = 200
 
-/** 標題列右上角「＋ 新增手牌」（6.1：新增手牌，不關聯場次） */
-function AddHandLink() {
+const headerActionClass =
+  'flex min-h-(--touch-min) min-w-(--touch-min) items-center justify-center rounded-(--radius-control) px-2 font-semibold whitespace-nowrap text-(--color-accent)'
+
+/**
+ * 標題列右上角（6.1）：「＋ 新增手牌」（不關聯場次）與「匯出」（7.1：匯出目前篩選結果中的完整手牌）。
+ * 「匯出」只在列表有手牌時顯示；「匯入」於 H4 實作匯入頁時加入。
+ */
+function HeaderActions({ onExport }: { onExport: (() => void) | null }) {
   return (
-    <Link
-      to={handNewPath()}
-      className="flex min-h-(--touch-min) items-center rounded-(--radius-control) px-2 font-semibold whitespace-nowrap text-(--color-accent)"
-    >
-      {strings.hands.addHand}
-    </Link>
+    <div className="flex items-center">
+      <Link to={handNewPath()} className={headerActionClass}>
+        {strings.hands.addHand}
+      </Link>
+      {onExport && (
+        <button type="button" onClick={onExport} aria-label={strings.hands.export.listButtonLabel} className={headerActionClass}>
+          {strings.hands.export.listButton}
+        </button>
+      )}
+    </div>
   )
 }
 
@@ -116,6 +128,11 @@ function HandsPage({ sessionId }: { sessionId: string | null }) {
   }, [sessionId, visible])
   const loadMore = useCallback(() => setVisible((v) => ({ key: v.key, count: v.count + HAND_BATCH_SIZE })), [])
 
+  // ---- 7.1 匯出：範圍為目前的篩選結果（含場次篩選與已套用的關鍵字） ----
+  const [exportRequest, setExportRequest] = useState<ExportRequest | null>(null)
+  const canExport = state.status === 'ready' && state.hands.length > 0
+  const openExport = () => setExportRequest(exportRequestFor(result.hands))
+
   // ---- 操作 ----
   const changeFilters = (patch: Partial<HandListFilters>) => setFilters((f) => ({ ...f, ...patch }))
   // 移除場次標籤、清除篩選：回到「手牌」頁籤的列表（不帶場次篩選）
@@ -186,9 +203,10 @@ function HandsPage({ sessionId }: { sessionId: string | null }) {
     <Page
       title={strings.pages.hands}
       {...(sessionId !== null ? { backTo: `/sessions/${encodeURIComponent(sessionId)}` } : {})}
-      action={<AddHandLink />}
+      action={<HeaderActions onExport={canExport ? openExport : null} />}
     >
       {body}
+      {exportRequest && <HandExportSheet request={exportRequest} onClose={() => setExportRequest(null)} />}
     </Page>
   )
 }
