@@ -1,0 +1,58 @@
+PokerStars Hand #7700000000000103: Tournament #7700000000000103, $0+$0 USD Hold'em No Limit - Level I (100/200) - 2026/09/30 22:00:00
+Table '7700000000000103 1' 8-max Seat #1 is the button
+Seat 1: Hero (1500 in chips)
+Seat 2: Villain2 (10000 in chips)
+Seat 3: Villain3 (10000 in chips)
+Seat 4: Villain4 (10000 in chips)
+Seat 5: Villain5 (10000 in chips)
+Seat 6: Villain6 (10000 in chips)
+Seat 7: Villain7 (10000 in chips)
+Seat 8: Villain8 (10000 in chips)
+Hero: posts the ante 25
+Villain2: posts the ante 25
+Villain3: posts the ante 25
+Villain4: posts the ante 25
+Villain5: posts the ante 25
+Villain6: posts the ante 25
+Villain7: posts the ante 25
+Villain8: posts the ante 25
+Villain2: posts small blind 100
+Villain3: posts big blind 200
+*** HOLE CARDS ***
+Dealt to Hero [Ah Kh]
+Villain4: folds
+Villain5: folds
+Villain6: folds
+Villain7: folds
+Villain8: folds
+Hero: calls 200
+Villain2: calls 100
+Villain3: checks
+*** FLOP *** [2c 7d 9h]
+Villain2: checks
+Villain3: checks
+Hero: checks
+*** TURN *** [2c 7d 9h] [Js]
+Villain2: checks
+Villain3: checks
+Hero: checks
+*** RIVER *** [2c 7d 9h Js] [4c]
+Villain2: checks
+Villain3: checks
+Hero: checks
+*** SHOW DOWN ***
+Villain2: shows [Qs Qd] (a pair of Queens)
+Villain3: shows [7c 7s] (three of a kind, Sevens)
+Hero: shows [Ah Kh] (high card Ace)
+Villain3 collected 800 from pot
+*** SUMMARY ***
+Total pot 800 | Rake 0
+Board [2c 7d 9h Js 4c]
+Seat 1: Hero (button) showed [Ah Kh] and lost with high card Ace
+Seat 2: Villain2 (small blind) showed [Qs Qd] and lost with a pair of Queens
+Seat 3: Villain3 (big blind) showed [7c 7s] and won (800) with three of a kind, Sevens
+Seat 4: Villain4 folded before Flop (didn't bet)
+Seat 5: Villain5 folded before Flop (didn't bet)
+Seat 6: Villain6 folded before Flop (didn't bet)
+Seat 7: Villain7 folded before Flop (didn't bet)
+Seat 8: Villain8 folded before Flop (didn't bet)

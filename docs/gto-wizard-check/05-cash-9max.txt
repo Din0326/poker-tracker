@@ -1,0 +1,50 @@
+PokerStars Hand #7700000000000105:  Hold'em No Limit ($100/$200) - 2026/09/30 23:00:00
+Table 'PokerRoad' 9-max Seat #1 is the button
+Seat 1: Villain1 ($20000 in chips)
+Seat 2: Villain2 ($20000 in chips)
+Seat 3: Villain3 ($25000 in chips)
+Seat 4: Villain4 ($20000 in chips)
+Seat 5: Villain5 ($20000 in chips)
+Seat 6: Villain6 ($20000 in chips)
+Seat 7: Hero ($20000 in chips)
+Seat 8: Villain8 ($20000 in chips)
+Seat 9: Villain9 ($20000 in chips)
+Villain2: posts small blind $100
+Villain3: posts big blind $200
+*** HOLE CARDS ***
+Dealt to Hero [Jh Jd]
+Villain4: folds
+Villain5: folds
+Villain6: folds
+Hero: raises $400 to $600
+Villain8: folds
+Villain9: folds
+Villain1: folds
+Villain2: folds
+Villain3: calls $400
+*** FLOP *** [Js 8c 2d]
+Villain3: checks
+Hero: bets $800
+Villain3: calls $800
+*** TURN *** [Js 8c 2d] [5h]
+Villain3: checks
+Hero: checks
+*** RIVER *** [Js 8c 2d 5h] [Kc]
+Villain3: bets $2000
+Hero: calls $2000
+*** SHOW DOWN ***
+Villain3: shows [Ac Qc] (high card Ace)
+Hero: shows [Jh Jd] (three of a kind, Jacks)
+Hero collected $6400 from pot
+*** SUMMARY ***
+Total pot $6900 | Rake $500
+Board [Js 8c 2d 5h Kc]
+Seat 1: Villain1 (button) folded before Flop (didn't bet)
+Seat 2: Villain2 (small blind) folded before Flop
+Seat 3: Villain3 (big blind) showed [Ac Qc] and lost with high card Ace
+Seat 4: Villain4 folded before Flop (didn't bet)
+Seat 5: Villain5 folded before Flop (didn't bet)
+Seat 6: Villain6 folded before Flop (didn't bet)
+Seat 7: Hero showed [Jh Jd] and won ($6400) with three of a kind, Jacks
+Seat 8: Villain8 folded before Flop (didn't bet)
+Seat 9: Villain9 folded before Flop (didn't bet)

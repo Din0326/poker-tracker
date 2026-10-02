@@ -1,0 +1,36 @@
+PokerStars Hand #7700000000000106:  Hold'em No Limit ($0.10/$0.25) - 2026/09/20 22:05:13
+Table 'PokerRoad' 6-max Seat #1 is the button
+Seat 1: 7f3a9c21 ($25.00 in chips)
+Seat 2: Hero ($25.00 in chips)
+Seat 3: b04e5d18 ($31.20 in chips)
+Seat 4: 2c8e6f07 ($25.00 in chips)
+Seat 5: e91d4a3b ($18.40 in chips)
+Seat 6: 5a6b7c8d ($25.00 in chips)
+Hero: posts small blind $0.10
+b04e5d18: posts big blind $0.25
+*** HOLE CARDS ***
+Dealt to Hero [Qh Qd]
+2c8e6f07: folds
+e91d4a3b: raises $0.40 to $0.65
+5a6b7c8d: folds
+7f3a9c21: folds
+Hero: raises $1.60 to $2.25
+b04e5d18: folds
+e91d4a3b: calls $1.60
+*** FLOP *** [8s 4h 2d]
+Hero: bets $1.50
+e91d4a3b: calls $1.50
+*** TURN *** [8s 4h 2d] [Jc]
+Hero: bets $3.75
+e91d4a3b: folds
+Uncalled bet ($3.75) returned to Hero
+Hero collected $7.31 from pot
+*** SUMMARY ***
+Total pot $7.75 | Rake $0.44
+Board [8s 4h 2d Jc]
+Seat 1: 7f3a9c21 (button) folded before Flop (didn't bet)
+Seat 2: Hero (small blind) collected ($7.31)
+Seat 3: b04e5d18 (big blind) folded before Flop
+Seat 4: 2c8e6f07 folded before Flop (didn't bet)
+Seat 5: e91d4a3b folded on the Turn
+Seat 6: 5a6b7c8d folded before Flop (didn't bet)

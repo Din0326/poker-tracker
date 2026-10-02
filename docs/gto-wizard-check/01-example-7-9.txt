@@ -1,0 +1,41 @@
+PokerStars Hand #7700000000000101:  Hold'em No Limit ($100/$200) - 2026/09/30 21:15:00
+Table 'PokerRoad' 6-max Seat #4 is the button
+Seat 1: Villain1 ($20000 in chips)
+Seat 2: Villain2 ($20000 in chips)
+Seat 3: Villain3 ($20000 in chips)
+Seat 4: Hero ($20000 in chips)
+Seat 5: Villain5 ($24000 in chips)
+Seat 6: Villain6 ($17100 in chips)
+Villain5: posts small blind $100
+Villain6: posts big blind $200
+*** HOLE CARDS ***
+Dealt to Hero [As Ks]
+Villain1: folds
+Villain2: folds
+Villain3: folds
+Hero: raises $300 to $500
+Villain5: folds
+Villain6: calls $300
+*** FLOP *** [Kh 7d 2c]
+Villain6: checks
+Hero: bets $700
+Villain6: calls $700
+*** TURN *** [Kh 7d 2c] [9s]
+Villain6: checks
+Hero: bets $1600
+Villain6: raises $14300 to $15900 and is all-in
+Hero: calls $14300
+*** RIVER *** [Kh 7d 2c 9s] [3h]
+*** SHOW DOWN ***
+Villain6: shows [Kd Qs] (a pair of Kings)
+Hero: shows [As Ks] (a pair of Kings)
+Hero collected $33900 from pot
+*** SUMMARY ***
+Total pot $34300 | Rake $400
+Board [Kh 7d 2c 9s 3h]
+Seat 1: Villain1 folded before Flop (didn't bet)
+Seat 2: Villain2 folded before Flop (didn't bet)
+Seat 3: Villain3 folded before Flop (didn't bet)
+Seat 4: Hero (button) showed [As Ks] and won ($33900) with a pair of Kings
+Seat 5: Villain5 (small blind) folded before Flop
+Seat 6: Villain6 (big blind) showed [Kd Qs] and lost with a pair of Kings
