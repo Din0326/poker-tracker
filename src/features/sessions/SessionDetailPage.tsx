@@ -31,7 +31,9 @@ import {
 import { useAppData } from '../../lib/appData'
 import { hideGlobalToast, showGlobalToast } from '../../lib/globalToast'
 import { strings } from '../../strings'
-import { handNewPath } from '../hands/handPaths'
+import { SessionHandsSection } from '../hands/SessionHandsSection'
+import { useSessionHands } from '../hands/handHooks'
+import { attachCachedHands, detachCachedHands } from '../hands/handsStore'
 import { parseDraft } from '../record/formModel'
 import { sessionToCopyDraft } from './copySession'
 import { listMemory } from './listMemory'
@@ -91,6 +93,8 @@ export function SessionDetailPage() {
   const [sheet, setSheet] = useState<'delete' | 'copy' | null>(null)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<{ id: number; text: string } | null>(null)
+  // SPEC-v2-hands 6.3 手牌區塊；6.5 刪除確認視窗的手牌數
+  const sessionHands = useSessionHands(id)
 
   useEffect(() => {
     let cancelled = false
@@ -178,6 +182,7 @@ export function SessionDetailPage() {
     try {
       const removed = await repos.sessions.delete(session.id)
       removeCachedSession(removed.session.id)
+      detachCachedHands(removed.detachedHandIds)
       setSheet(null)
       void navigate(`${SESSIONS_PATH}${listMemory.search}`, { replace: true })
       const toastId = showGlobalToast({
@@ -189,7 +194,10 @@ export function SessionDetailPage() {
             hideGlobalToast(toastId)
             // 以原始 id、createdAt、updatedAt 原封不動寫回；刪除時轉為獨立的手牌重新掛回（SPEC-v2-hands 6.5）
             repos.sessions.restore(removed.session, removed.detachedHandIds).then(
-              (s) => upsertCachedSession(s),
+              (s) => {
+                upsertCachedSession(s)
+                attachCachedHands(removed.detachedHandIds, s.id)
+              },
               () => showGlobalToast({ text: strings.sessions.undo.restoreFailed, durationMs: ERROR_TOAST_MS }),
             )
           },
@@ -368,10 +376,8 @@ export function SessionDetailPage() {
         </p>
       </section>
 
-      {/* SPEC-v2-hands 5.1、6.3：「＋ 新增手牌」→ 新增手牌並預先關聯該場（手牌區塊的列表於 H2 加入） */}
-      <button type="button" onClick={() => void navigate(handNewPath(session.id))} className={`${secondaryButtonClass} mt-4 w-full`}>
-        {strings.hands.addHand}
-      </button>
+      {/* SPEC-v2-hands 6.3：備註之後的「手牌」區塊（含「＋ 新增手牌」→ 新增手牌並預先關聯該場） */}
+      <SessionHandsSection sessionId={session.id} hands={sessionHands} />
 
       <div className="mt-6 grid gap-3">
         <button type="button" onClick={() => void navigate(`${SESSIONS_PATH}/${encodeURIComponent(session.id)}/edit`)} className={actionClass}>
@@ -406,6 +412,12 @@ export function SessionDetailPage() {
             )}
           </p>
         </div>
+        {/* SPEC-v2-hands 6.5：該場有手牌時加一行 */}
+        {sessionHands !== null && sessionHands.length > 0 && (
+          <p data-testid="delete-sheet-hands" className="num mt-3 text-sm">
+            {strings.sessions.deleteSheet.handsNote(sessionHands.length)}
+          </p>
+        )}
         <div className="mt-4 grid grid-cols-2 gap-3">
           <button type="button" onClick={() => setSheet(null)} className={secondaryButtonClass}>
             {strings.common.cancel}

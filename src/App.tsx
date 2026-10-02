@@ -4,6 +4,8 @@ import { Page } from './components/Page'
 import { GlobalToast } from './components/GlobalToast'
 import { TabBar } from './components/TabBar'
 import { UpdatePrompt } from './components/UpdatePrompt'
+import { HandDetailPage } from './features/hands/HandDetailPage'
+import { HandsRoute } from './features/hands/HandsPage'
 import { RecordPage } from './features/record/RecordPage'
 import { SessionDetailPage } from './features/sessions/SessionDetailPage'
 import { SessionEditPage } from './features/sessions/SessionEditPage'
@@ -61,11 +63,13 @@ const routes: RouteObject[] = [
       { path: 'sessions', element: <SessionsPage /> },
       { path: 'sessions/:id', element: <SessionDetailPage /> },
       { path: 'sessions/:id/edit', element: <SessionEditPage /> },
-      // v2 手牌（SPEC-v2-hands 5.1）：H1 先提供新增與編輯；手牌列表、詳情、匯入於 H2–H4 加入
+      // v2 手牌（SPEC-v2-hands 5.1）：列表為「手牌」頁籤的根畫面，新增、詳情、編輯為推入式子頁；匯入頁於 H4 加入
+      { path: 'hands', element: <HandsRoute /> },
+      { path: 'hands/:id', element: <HandDetailPage /> },
       {
         path: 'hands/new',
         element: (
-          <Suspense fallback={<LoadingPage title={strings.pages.handNew} backTo="/" />}>
+          <Suspense fallback={<LoadingPage title={strings.pages.handNew} backTo="/hands" />}>
             <HandNewPage />
           </Suspense>
         ),
@@ -73,7 +77,7 @@ const routes: RouteObject[] = [
       {
         path: 'hands/:id/edit',
         element: (
-          <Suspense fallback={<LoadingPage title={strings.pages.handEdit} backTo="/" />}>
+          <Suspense fallback={<LoadingPage title={strings.pages.handEdit} backTo="/hands" />}>
             <HandEditPage />
           </Suspense>
         ),

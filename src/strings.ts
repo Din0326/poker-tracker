@@ -159,6 +159,8 @@ export const strings = {
   tabs: {
     record: '新增',
     sessions: '紀錄',
+    /** v2 第五個頁籤（SPEC-v2-hands 5.1） */
+    hands: '手牌',
     report: '報表',
     settings: '設定',
     navLabel: '主要分頁',
@@ -174,6 +176,8 @@ export const strings = {
     stakes: '盲注管理',
     handNew: '新增手牌',
     handEdit: '編輯手牌',
+    hands: '手牌',
+    handDetail: '手牌詳情',
   },
   // 期間選擇（4.5；報表 6.1 與紀錄列表 7.1 共用）
   period: {
@@ -281,6 +285,8 @@ export const strings = {
       title: '刪除這筆紀錄？',
       /** 有出資者時盈利後加註「賣 30%」（7.5） */
       soldNote: (percent: string) => `賣 ${percent}`,
+      /** SPEC-v2-hands 6.5：該場有手牌時加一行 */
+      handsNote: (n: number) => `這場有 ${n} 手手牌，刪除後會轉為獨立手牌（不會刪除）`,
       confirm: '刪除',
       failed: '刪除失敗，請再試一次',
     },
@@ -434,7 +440,8 @@ export const strings = {
       bet: (amount: string) => `下注 ${amount}`,
       raise: (amount: string) => `加注到 ${amount}`,
       allIn: '全下',
-      line: (actor: string, action: string) => `${actor} ${action}`,
+      /** 6.2「UTG（1）棄牌」「你 BTN（4）加注到 $500」：行動者與動作之間不空格 */
+      line: (actor: string, action: string) => `${actor}${action}`,
     },
     pot: (amount: string) => `底池 ${amount}`,
     currentBet: (amount: string) => `目前下注額 ${amount}`,
@@ -563,6 +570,127 @@ export const strings = {
       potNoShown: '這個底池至少需要一位玩家亮牌才能判定輸贏',
       rakeExceedsPot: '抽水不可大於底池',
     },
+    // SPEC-v2-hands 6.1 手牌列表
+    list: {
+      /** 列表頂端篩選結果彙總「共 120 手（完整 80 手）」；不顯示結果加總（4.13） */
+      summary: (count: number, complete: number) => `共 ${count} 手（完整 ${complete} 手）`,
+      /** 月份標題「2026 年 9 月 · 42 手」 */
+      monthHeader: (year: number, month: number, count: number) => `${year} 年 ${month} 月 · ${count} 手`,
+      /** 單列時間 `09/30 21:15` */
+      rowTime: (month: string, day: string, hour: string, minute: string) => `${month}/${day} ${hour}:${minute}`,
+      /** 盲注 `$100/$200` */
+      blinds: (sb: string, bb: string) => `${sb}/${bb}`,
+      /** 簡易備忘手牌有大盲時 `大盲 $200` */
+      memoBb: (bb: string) => `大盲 ${bb}`,
+      /** 位置與盲注之間 `BTN · $100/$200` */
+      join: (a: string, b: string) => `${a} · ${b}`,
+      /** 沒有位置也沒有盲注時 */
+      untitled: '手牌',
+      /** 標籤多於 2 個 `+N` */
+      moreTags: (n: number) => `+${n}`,
+      moreTagsLabel: (n: number) => `另有 ${n} 個標籤`,
+      badges: {
+        simple: '簡易',
+        unfinished: '未完成',
+        gg: 'GG',
+        experimental: '實驗',
+      },
+      noHeroCards: '沒有手牌',
+      loadingMore: '載入更多…',
+      empty: {
+        noHands: '還沒有手牌紀錄',
+        addFirst: '新增第一手',
+        noMatch: '沒有符合條件的手牌',
+      },
+      filters: {
+        label: '篩選',
+        kind: '紀錄類型',
+        kinds: { all: '全部', complete: '完整', simple: '簡易' },
+        source: '來源',
+        sources: { all: '全部', manual: '手動', gg: 'GG' },
+        position: '位置',
+        positionAll: '全部',
+        positionNone: '未指定',
+        tag: '標籤',
+        tagAll: '全部',
+        link: '關聯場次',
+        links: { all: '全部', linked: '有關聯', standalone: '獨立' },
+        keyword: '關鍵字',
+        keywordPlaceholder: '搜尋備註或標籤',
+        clear: '清除篩選',
+        /** 從場次詳情「查看全部」進入時的可移除標籤「場次：09/27 6bet」 */
+        sessionTag: (label: string) => `場次：${label}`,
+        sessionLabel: (date: string, title: string) => `${date} ${title}`,
+        unknownSession: '（找不到）',
+      },
+    },
+    // SPEC-v2-hands 6.2 手牌詳情
+    detail: {
+      /** 牌局摘要「現金桌 · 6-max · $100/$200 · 有效 100.0 bb」 */
+      tableMax: (n: number) => `${n}-max`,
+      effective: (bb: string) => `有效 ${bb}`,
+      ante: (amount: string) => `前注 ${amount}`,
+      straddle: (amount: string) => `Straddle ${amount}`,
+      position: '位置',
+      time: '時間',
+      session: '關聯場次',
+      standalone: '獨立手牌',
+      openSession: (label: string) => `前往場次 ${label}`,
+      memoSection: '備忘',
+      heroCards: '手牌',
+      board: '公牌',
+      bb: '大盲',
+      result: '結果',
+      seatsSection: '座位',
+      seatNo: (n: number) => `座位 ${n}`,
+      you: '你',
+      /** 起始籌碼「$20,000 · 100.0 bb」 */
+      stack: (amount: string, bb: string) => `${amount} · ${bb}`,
+      /** 街標題的底池「底池 $1,100」 */
+      streetPot: (amount: string) => `底池 ${amount}`,
+      /** 前注與盲注「SB（5）小盲 $100」 */
+      post: (actor: string, kind: string, amount: string) => `${actor}${kind} ${amount}`,
+      postKinds: { ante: '前注', sb: '小盲', bb: '大盲', straddle: 'Straddle' },
+      /** 未跟注退回「退回 $750 給 你」 */
+      refund: (amount: string, who: string) => `退回 ${amount} 給 ${who}`,
+      resultSection: '結果',
+      showdownTitle: '攤牌',
+      mucked: '蓋牌',
+      potsTitle: '底池',
+      rake: (amount: string) => `抽水 ${amount}`,
+      netTitle: '淨輸贏',
+      unfinished: '（尚未完成）',
+      continue: '繼續補齊',
+      tagsSection: '標籤',
+      noteSection: '備註',
+      sourceHandId: (id: string) => `原站手牌編號 ${id}`,
+      edit: '編輯',
+      delete: '刪除',
+    },
+    /** 畫面上的中文牌型（4.10），例「一對 K」 */
+    categories: {
+      highCard: (r: string) => `高牌 ${r}`,
+      pair: (r: string) => `一對 ${r}`,
+      twoPair: (a: string, b: string) => `兩對 ${a}、${b}`,
+      threeOfAKind: (r: string) => `三條 ${r}`,
+      straight: (low: string, high: string) => `順子 ${low} 到 ${high}`,
+      flush: (r: string) => `同花 ${r} 高`,
+      fullHouse: (a: string, b: string) => `葫蘆 ${a}、${b}`,
+      fourOfAKind: (r: string) => `四條 ${r}`,
+      straightFlush: (low: string, high: string) => `同花順 ${low} 到 ${high}`,
+    },
+    // SPEC-v2-hands 6.4 刪除手牌
+    deleteSheet: {
+      title: '刪除這手牌？',
+      confirm: '刪除',
+      failed: '刪除失敗，請再試一次',
+    },
+    // SPEC-v2-hands 6.3 場次詳情的手牌區塊
+    sessionSection: {
+      title: (n: number) => `手牌（${n}）`,
+      empty: '這場還沒有手牌',
+      viewAll: (n: number) => `查看全部 ${n} 手`,
+    },
   },
   // 第 6 節報表
   report: {
@@ -651,6 +779,14 @@ export const strings = {
     },
     profitSample: '範例',
     themeHint: '深淺色主題跟隨系統設定',
+    // SPEC-v2-hands 10.6、7.3：手牌區塊（顯示設定之後、資料備份之前）
+    handsSection: '手牌',
+    heroName: '匯出名稱',
+    heroNameHint: '匯出給 GTO Wizard 等工具時，你在手牌中的名稱',
+    heroNameInvalid: '名稱需為 1–12 個英文字母、數字或底線，且以英文字母開頭',
+    heroNameReserved: '不可使用 Villain 加數字的名稱',
+    heroNameSave: '儲存',
+    heroNameSaved: '已儲存匯出名稱',
     backupSection: '資料備份',
     backupHint: '資料只存在這台裝置，請定期匯出備份檔',
     exportJson: '匯出備份（JSON）',

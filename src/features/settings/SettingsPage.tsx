@@ -5,6 +5,7 @@ import { Page } from '../../components/Page'
 import { secondaryButtonClass } from '../../components/controlStyles'
 import type { ProfitColorScheme } from '../../domain'
 import type { HandCounts } from '../../db'
+import { DEFAULT_HERO_NAME } from '../../domain/hands'
 import { useAppData } from '../../lib/appData'
 import { DEFAULT_PROFIT_SCHEME } from '../../lib/profitScheme'
 import { strings } from '../../strings'
@@ -12,6 +13,7 @@ import { BACKUP_SECTION_ID, BackupSection } from './BackupSection'
 import { ClearDataSection } from './ClearDataSection'
 import { DevSeedSection } from './DevSeedSection'
 import { DisplaySection } from './DisplaySection'
+import { HandsSection } from './HandsSection'
 import { SettingsSection, cardClass } from './SettingsSection'
 import { SystemInfoSection } from './SystemInfoSection'
 
@@ -22,6 +24,8 @@ interface SettingsInfo {
   handCounts: HandCounts
   lastBackupAt: string | undefined
   profitColorScheme: ProfitColorScheme
+  /** SPEC-v2-hands 7.3：未設定時視為 Hero */
+  handHeroName: string
 }
 
 type LoadState = { status: 'loading' } | { status: 'error' } | { status: 'ready'; info: SettingsInfo }
@@ -31,7 +35,7 @@ export interface SettingsLocationState {
   focus?: 'backup'
 }
 
-// 設定（第 8 節），由上到下：常用清單 → 顯示設定 → 資料備份 → 資料與系統資訊 → 開發工具（僅 DEV）→ 清除所有資料
+// 設定（第 8 節），由上到下：常用清單 → 顯示設定 → 手牌（SPEC-v2-hands 10.6）→ 資料備份 → 資料與系統資訊 → 開發工具（僅 DEV）→ 清除所有資料
 export function SettingsPage() {
   const { db, repos } = useAppData()
   const location = useLocation()
@@ -41,13 +45,14 @@ export function SettingsPage() {
   const [dataVersion, setDataVersion] = useState(0)
 
   const fetchInfo = useCallback(async (): Promise<SettingsInfo> => {
-    const [sessionCount, venueCount, stakeCount, handCounts, lastBackupAt, profitColorScheme] = await Promise.all([
+    const [sessionCount, venueCount, stakeCount, handCounts, lastBackupAt, profitColorScheme, handHeroName] = await Promise.all([
       db.sessions.count(),
       db.venues.count(),
       db.stakes.count(),
       repos.hands.counts(),
       repos.settings.get('lastBackupAt'),
       repos.settings.get('profitColorScheme'),
+      repos.settings.get('handHeroName'),
     ])
     return {
       sessionCount,
@@ -56,6 +61,7 @@ export function SettingsPage() {
       handCounts,
       lastBackupAt,
       profitColorScheme: profitColorScheme ?? DEFAULT_PROFIT_SCHEME,
+      handHeroName: handHeroName ?? DEFAULT_HERO_NAME,
     }
   }, [db, repos])
   // 讀取失敗時：已有資料則保留，否則顯示錯誤狀態
@@ -125,6 +131,7 @@ export function SettingsPage() {
           </ul>
         </SettingsSection>
         <DisplaySection key={dataVersion} initial={info.profitColorScheme} />
+        <HandsSection key={`hands-${dataVersion}`} initial={info.handHeroName} />
         <BackupSection
           lastBackupAt={info.lastBackupAt}
           onChanged={() => void load().then(() => setDataVersion((v) => v + 1))}

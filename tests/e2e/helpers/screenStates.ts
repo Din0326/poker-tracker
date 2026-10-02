@@ -15,7 +15,7 @@ import {
   preflop79,
   slotButton,
 } from './handForm'
-import { H_79, H_GG, fixtureHands } from './hands'
+import { H_79, H_GG, H_MEMO, H_SIDE, fixtureHands } from './hands'
 import { DB_NAME, putRecords } from './idb'
 import { groupByButton, manySessions, openReport, reportTab } from './report'
 import { chooseImportFile, openActions } from './settings'
@@ -903,6 +903,175 @@ export const handStates: { name: string; setup: (page: Page) => Promise<void> }[
         }),
       )
       await page.getByRole('dialog', { name: '匯入備份？' }).waitFor()
+    },
+  },
+]
+
+// ---- H2 手牌列表、詳情、場次手牌區塊、刪除與復原、設定頁手牌區塊（SPEC-v2-hands 第 6 節、7.3） ----
+
+/** 寫入固定的場次與 5 手手牌（7.9 完整、簡易備忘、錦標賽備忘、三人邊池、GG） */
+async function seedHands(page: Page) {
+  await seed(page)
+  await putRecords(page, 'hands', fixtureHands())
+}
+
+async function openHandsTab(page: Page) {
+  await page.getByRole('navigation', { name: '主要分頁' }).getByRole('link', { name: '手牌' }).click()
+  await page.getByTestId('hand-list-summary').or(page.getByText('還沒有手牌紀錄')).waitFor()
+}
+
+async function openHandDetailAt(page: Page, id: string) {
+  await seedHands(page)
+  await openHandsTab(page)
+  await page.locator(`[data-hand-id="${id}"]`).click()
+  await page.getByTestId('detail-result').waitFor()
+}
+
+/** 捲到某個 testid 的元素（扣掉固定標題列高度） */
+async function scrollToTestId(page: Page, testId: string, offset = 70) {
+  await page.getByTestId(testId).evaluate((el, off) => window.scrollTo(0, el.getBoundingClientRect().top + window.scrollY - off), offset)
+}
+
+export const handListStates: { name: string; setup: (page: Page) => Promise<void> }[] = [
+  {
+    // 分頁列五個頁籤與「手牌」作用中也在此畫面
+    name: 'hands-list',
+    setup: async (page) => {
+      await seedHands(page)
+      await openHandsTab(page)
+    },
+  },
+  {
+    name: 'hands-list-rows',
+    setup: async (page) => {
+      await seedHands(page)
+      await openHandsTab(page)
+      await scrollToTestId(page, 'hand-list-summary', 60)
+    },
+  },
+  {
+    name: 'hands-filtered',
+    setup: async (page) => {
+      await seedHands(page)
+      await page.goto(`./#/hands?sessionId=${fixture.c1.id}`)
+      await page.getByTestId('hand-filter-tag').waitFor()
+      await page.getByLabel('紀錄類型').selectOption({ label: '簡易' })
+      await page.getByTestId('hand-row').first().waitFor()
+    },
+  },
+  {
+    name: 'hands-empty',
+    setup: async (page) => {
+      await seed(page)
+      await openHandsTab(page)
+      await page.getByText('還沒有手牌紀錄').waitFor()
+    },
+  },
+  {
+    name: 'hands-no-match',
+    setup: async (page) => {
+      await seedHands(page)
+      await openHandsTab(page)
+      await page.getByLabel('關鍵字').fill('不存在的關鍵字')
+      await page.getByText('沒有符合條件的手牌').waitFor()
+    },
+  },
+  {
+    name: 'hand-detail-complete',
+    setup: async (page) => openHandDetailAt(page, H_79),
+  },
+  {
+    name: 'hand-detail-streets',
+    setup: async (page) => {
+      await openHandDetailAt(page, H_79)
+      await scrollToTestId(page, 'detail-street-preflop')
+    },
+  },
+  {
+    name: 'hand-detail-result',
+    setup: async (page) => {
+      await openHandDetailAt(page, H_79)
+      await scrollToTestId(page, 'detail-result-section')
+    },
+  },
+  {
+    name: 'hand-detail-side-pot',
+    setup: async (page) => {
+      await openHandDetailAt(page, H_SIDE)
+      await scrollToTestId(page, 'detail-street-preflop')
+    },
+  },
+  {
+    name: 'hand-detail-memo',
+    setup: async (page) => openHandDetailAt(page, H_MEMO),
+  },
+  {
+    name: 'hand-detail-gg',
+    setup: async (page) => openHandDetailAt(page, H_GG),
+  },
+  {
+    name: 'hand-detail-bottom',
+    setup: async (page) => {
+      await openHandDetailAt(page, H_GG)
+      await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight))
+    },
+  },
+  {
+    name: 'session-hands-section',
+    setup: async (page) => {
+      await seedHands(page)
+      await openList(page)
+      await openDetail(page, fixture.c1.id)
+      await page.getByTestId('session-hands').getByTestId('hand-row').first().waitFor()
+      await scrollToTestId(page, 'session-hands', 140)
+    },
+  },
+  {
+    name: 'session-delete-confirm-hands',
+    setup: async (page) => {
+      await seedHands(page)
+      await openList(page)
+      await openDetail(page, fixture.c1.id)
+      await page.getByTestId('session-hands').getByTestId('hand-row').first().waitFor()
+      await page.getByRole('button', { name: '刪除' }).click()
+      await page.getByTestId('delete-sheet-hands').waitFor()
+    },
+  },
+  {
+    name: 'hand-delete-confirm',
+    setup: async (page) => {
+      await openHandDetailAt(page, H_79)
+      await page.getByRole('button', { name: '刪除' }).click()
+      await page.getByRole('dialog', { name: '刪除這手牌？' }).waitFor()
+    },
+  },
+  {
+    name: 'hand-undo-toast',
+    setup: async (page) => {
+      await openHandDetailAt(page, H_SIDE)
+      await page.getByRole('button', { name: '刪除' }).click()
+      await page.getByRole('dialog').getByRole('button', { name: '刪除' }).click()
+      await page.getByRole('status').filter({ hasText: '已刪除' }).waitFor()
+    },
+  },
+  {
+    name: 'settings-hands',
+    setup: async (page) => {
+      await seed(page)
+      await page.goto('./#/settings')
+      await page.getByLabel('匯出名稱').waitFor()
+      await scrollToHeading(page, '手牌')
+    },
+  },
+  {
+    name: 'settings-hands-error',
+    setup: async (page) => {
+      await seed(page)
+      await page.goto('./#/settings')
+      await page.getByLabel('匯出名稱').fill('villain3')
+      await page.getByRole('region', { name: '手牌' }).getByRole('button', { name: '儲存' }).click()
+      await page.getByText('不可使用 Villain 加數字的名稱').waitFor()
+      await scrollToHeading(page, '手牌')
     },
   },
 ]

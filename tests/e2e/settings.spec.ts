@@ -22,11 +22,11 @@ const tokenColor = (page: Page, token: string) =>
     return c
   }, token)
 
-test('設定頁區塊順序：常用清單 → 顯示設定 → 資料備份 → 資料與系統資訊 → 清除所有資料（最底部、紅色）', async ({ page }) => {
+test('設定頁區塊順序：常用清單 → 顯示設定 → 手牌（SPEC-v2-hands 10.6）→ 資料備份 → 資料與系統資訊 → 清除所有資料（最底部、紅色）', async ({ page }) => {
   await openRecordPage(page)
   await openSettings(page)
   const titles = await page.getByRole('heading', { level: 2 }).allTextContents()
-  expect(titles).toEqual(['常用清單', '顯示設定', '資料備份', '資料與系統資訊', '危險操作'])
+  expect(titles).toEqual(['常用清單', '顯示設定', '手牌', '資料備份', '資料與系統資訊', '危險操作'])
   // 正式建置不含開發工具
   await expect(page.getByRole('heading', { name: '開發工具' })).toHaveCount(0)
   const clear = page.getByRole('button', { name: '清除所有資料' })

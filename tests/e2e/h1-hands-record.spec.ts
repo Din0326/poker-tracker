@@ -149,8 +149,8 @@ test.describe('12.3 H1 簡易模式', () => {
     await page.getByLabel('備註').fill('第一行\n第二行')
     await handBar(page).getByRole('button', { name: '儲存' }).click()
     await expect(toast(page)).toHaveText('已儲存手牌')
-    // 直接開啟網址進入（沒有上一頁）：返回首頁（手牌列表於 H2 實作）
-    await expect(heading(page)).toHaveText('新增場次')
+    // 5.8：不是從場次詳情進入 → 返回手牌列表（直接開啟網址、沒有上一頁時前往列表）
+    await expect(heading(page)).toHaveText('手牌')
 
     const [hand] = await readStore<Hand>(page, 'hands')
     expect(hand).toMatchObject({
@@ -480,7 +480,7 @@ test.describe('12.3 H1 暫存為簡易、補齊、編輯', () => {
     await pickCards(page, slotButton(page.getByTestId('result-step'), 'BB（6）', 1), ['Kd', 'Qs'])
     await page.getByLabel('抽水').fill('400')
     await handBar(page).getByRole('button', { name: '儲存' }).click()
-    await expect(heading(page)).toHaveText('新增場次')
+    await expect(heading(page)).toHaveText('手牌詳情')  // 5.8 編輯儲存後返回手牌詳情（直接開啟編輯網址時前往詳情）
 
     const hands = await readStore<Hand>(page, 'hands')
     expect(hands).toHaveLength(1)
@@ -518,7 +518,7 @@ test.describe('12.3 H1 暫存為簡易、補齊、編輯', () => {
     await expect(page.getByTestId('tag-chip')).toHaveText(['3bet', 'bluff'])
     await expect(page.getByLabel('備註')).toHaveValue('備忘\n第二行')
     await handBar(page).getByRole('button', { name: '儲存' }).click()
-    await expect(heading(page)).toHaveText('新增場次')
+    await expect(heading(page)).toHaveText('手牌詳情')  // 5.8 編輯儲存後返回手牌詳情（直接開啟編輯網址時前往詳情）
     const [hand] = await readStore<Hand>(page, 'hands')
     expect(hand).toMatchObject({ id, exportSeq: 11, kind: 'complete', heroPosition: 'CO', bb: 200, heroCards: ['As', 'Kd'], board: [], heroNet: 0, tags: ['3bet', 'bluff'], note: '備忘\n第二行', playedAt: '2026-09-27T21:15:00' })
     // 備忘的結果被計算值取代（你在 CO 棄牌、沒有投入）
@@ -555,7 +555,7 @@ test.describe('12.3 H1 暫存為簡易、補齊、編輯', () => {
     await expect(logLines(page)).toHaveCount(0)
     await page.getByRole('button', { name: '更多操作' }).click()
     await dialog(page).getByRole('button', { name: '暫存為簡易' }).click()
-    await expect(heading(page)).toHaveText('新增場次')
+    await expect(heading(page)).toHaveText('手牌詳情')  // 5.8 編輯儲存後返回手牌詳情（直接開啟編輯網址時前往詳情）
     const hand = (await readStore<Hand>(page, 'hands')).find((h) => h.id === H_79)!
     expect(hand.kind).toBe('simple')
     expect(hand.detail!.actions).toEqual([])
@@ -577,7 +577,7 @@ test.describe('12.3 H1 暫存為簡易、補齊、編輯', () => {
     await expect(page.getByLabel('備註')).toHaveValue('改過')
     await page.getByRole('button', { name: '返回', exact: true }).click()
     await page.getByRole('dialog', { name: '放棄變更？' }).getByRole('button', { name: '確定' }).click()
-    await expect(heading(page)).toHaveText('新增場次')
+    await expect(heading(page)).toHaveText('手牌詳情')  // 直接開啟編輯網址（沒有上一頁）：返回鈕前往手牌詳情（H2 起）
     const [hand] = await readStore<Hand>(page, 'hands')
     expect(hand!.note).toBe('備忘\n第二行')
   })
@@ -589,7 +589,7 @@ test.describe('12.3 H1 暫存為簡易、補齊、編輯', () => {
     await page.goto(`./#/hands/${id}/edit`)
     await page.getByRole('group', { name: '牌局類型' }).getByRole('button', { name: '錦標賽' }).click()
     await handBar(page).getByRole('button', { name: '儲存' }).click()
-    await expect(heading(page)).toHaveText('新增場次')
+    await expect(heading(page)).toHaveText('手牌詳情')  // 5.8 編輯儲存後返回手牌詳情（直接開啟編輯網址時前往詳情）
     const [hand] = await readStore<Hand>(page, 'hands')
     expect(hand).toMatchObject({ id, gameType: 'tournament', amountUnit: 'chip', bb: 200, heroNet: 1500, exportSeq: 11 })
   })
@@ -610,7 +610,7 @@ test.describe('12.3 H1 暫存為簡易、補齊、編輯', () => {
     await page.getByLabel('新增標籤').press('Enter')
     await page.getByLabel('備註').fill('匯入後補註')
     await handBar(page).getByRole('button', { name: '儲存' }).click()
-    await expect(heading(page)).toHaveText('新增場次')
+    await expect(heading(page)).toHaveText('手牌詳情')  // 5.8 編輯儲存後返回手牌詳情（直接開啟編輯網址時前往詳情）
     const after = (await readStore<Hand>(page, 'hands')).find((h) => h.id === H_GG)!
     const { updatedAt: _a, sessionId: _s, tags: _t, note: _n, ...restAfter } = after
     const { updatedAt: _b, sessionId: _s2, tags: _t2, note: _n2, ...restBefore } = before

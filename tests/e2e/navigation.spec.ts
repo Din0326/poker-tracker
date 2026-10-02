@@ -1,9 +1,10 @@
 import { expect, test } from '@playwright/test'
 
-// 10.3 P0：四個分頁可切換，子頁有返回鈕
+// 10.3 P0：分頁可切換，子頁有返回鈕。v2（SPEC-v2-hands 5.1、0.4）起為五個頁籤：新增 / 紀錄 / 手牌 / 報表 / 設定
 const tabs = [
   { label: '新增', path: '/', title: '新增場次' },
   { label: '紀錄', path: '/sessions', title: '紀錄' },
+  { label: '手牌', path: '/hands', title: '手牌' },
   { label: '報表', path: '/report', title: '報表' },
   { label: '設定', path: '/settings', title: '設定' },
 ]
@@ -19,9 +20,11 @@ test('預設進入新增頁', async ({ page }) => {
   )
 })
 
-test('四個分頁可切換，當前分頁有標示', async ({ page }) => {
+test('五個分頁可切換，當前分頁有標示', async ({ page }) => {
   await page.goto('./')
   const nav = page.getByRole('navigation', { name: '主要分頁' })
+  // 分頁列只有這五個頁籤，順序固定
+  await expect(nav.getByRole('link')).toHaveText(tabs.map((t) => t.label))
   for (const tab of [...tabs].reverse()) {
     await nav.getByRole('link', { name: tab.label }).click()
     await expect(page.getByRole('heading', { level: 1 })).toHaveText(tab.title)

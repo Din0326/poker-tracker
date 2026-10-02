@@ -2,7 +2,8 @@
 // H1 的新增 / 編輯手牌頁先用到這些格式；手牌列表與詳情（H2）沿用。所有畫面文字取自 src/strings.ts。
 import { strings } from '../../strings'
 import { formatBbProfit, roundHalfAwayFromZero } from '../format'
-import { suitOf, type Rank, type Suit } from './cards'
+import { RANKS, suitOf, type Rank, type Suit } from './cards'
+import type { HandValue } from './evaluator'
 import type { AmountUnit, Card, Position } from './types'
 
 const f = strings.format
@@ -76,4 +77,39 @@ export function cardName(card: Card): string {
 /** 位置顯示：`UTG1` 顯示為 `UTG+1`，其餘照原字（3.7） */
 export function positionText(position: Position): string {
   return strings.hands.positions[position]
+}
+
+/** 點數數值（2–14）的顯示文字：14 → `A`、10 → `10` */
+function rankValueText(value: number): string {
+  return rankText(RANKS[value - 2] as Rank)
+}
+
+/**
+ * 4.10 畫面上的中文牌型，例「一對 K」。牌型名稱取自字串檔；
+ * 點數依 4.10 英文描述的同一組點數組成（例兩對「兩對 K、7」、順子「順子 10 到 A」、A-2-3-4-5 為「順子 A 到 5」）。
+ */
+export function describeHandValueText(v: HandValue): string {
+  const c = strings.hands.categories
+  const [r0 = 0, r1 = 0] = v.ranks
+  const low = (top: number) => (top === 5 ? 14 : top - 4)
+  switch (v.category) {
+    case 'highCard':
+      return c.highCard(rankValueText(r0))
+    case 'pair':
+      return c.pair(rankValueText(r0))
+    case 'twoPair':
+      return c.twoPair(rankValueText(r0), rankValueText(r1))
+    case 'threeOfAKind':
+      return c.threeOfAKind(rankValueText(r0))
+    case 'straight':
+      return c.straight(rankValueText(low(r0)), rankValueText(r0))
+    case 'flush':
+      return c.flush(rankValueText(r0))
+    case 'fullHouse':
+      return c.fullHouse(rankValueText(r0), rankValueText(r1))
+    case 'fourOfAKind':
+      return c.fourOfAKind(rankValueText(r0))
+    case 'straightFlush':
+      return c.straightFlush(rankValueText(low(r0)), rankValueText(r0))
+  }
 }
