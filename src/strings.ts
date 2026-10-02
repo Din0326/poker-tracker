@@ -1151,6 +1151,18 @@ export const strings = {
   // 3.7 資料庫升級（version 1 → 2；v2 手牌 version 2 → 3，SPEC-v2-hands 3.12）失敗時的錯誤狀態
   dbUpgrade: {
     failed: '資料升級失敗，請關閉 App 後重新開啟；你的資料沒有遺失',
+    // 3.7「升級前的備份提示」（v1.6）
+    prompt: {
+      title: '這次更新會升級資料庫',
+      body: '更新時會把資料轉換成新版格式，原有紀錄都會保留。為了以防萬一，建議先匯出一份備份檔再繼續。',
+      dataLabel: '目前資料',
+      exportBackup: '先匯出備份',
+      exportAgain: '再匯出一次',
+      exporting: '匯出中…',
+      backedUp: '已備份',
+      skip: '直接更新',
+      continue: '繼續更新',
+    },
   },
   // 4.4 數值顯示用的符號與樣板（src/domain/format.ts 使用）
   format: {

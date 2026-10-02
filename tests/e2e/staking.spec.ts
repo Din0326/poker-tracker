@@ -387,6 +387,9 @@ test('P5.5 E2E 遷移：以 v1 結構直接寫入 IndexedDB 後載入 App，列�
 
   // 載入新版 App：開啟時執行 version 1 → 2 → 3 遷移（v2 起新版為 version 3，SPEC-v2-hands 3.12）
   await page.goto('./#/sessions')
+  // v1.6（v1 3.7 升級前的備份提示）：舊版且有資料時先出現提示；本測試驗證升級本身，選【直接更新】（提示與匯出另見 p7-data-protection.spec.ts）
+  await expect(page.getByTestId('db-upgrade-prompt')).toBeVisible()
+  await page.getByRole('button', { name: '直接更新' }).click()
   await expect(heading(page)).toHaveText('紀錄')
   await expect(rows(page)).toHaveCount(7)
   await expect(summary(page)).toHaveText('共 7 場 · +$8,400')
