@@ -6,7 +6,7 @@ import { applyAction, boardCountFor, legalActions, startHand, type EngineState }
 import { forcedSeats } from '../positions'
 import { potsAfterRake } from '../pots'
 import { SEAT_NAME_RE, VILLAIN_NAME_RE, handDetailSchema } from '../schemas'
-import { analyzeDetail, classifyHand, summarizeHand } from '../summary'
+import { analyzeDetail, classifyHand, isShowdownComplete, summarizeHand } from '../summary'
 import type {
   Action,
   ActionType,
@@ -41,6 +41,9 @@ import type {
  * - incomplete：手牌內容不完整（未結束、缺少攤牌資料等，3.9）
  * - invalidDetail：3.2–3.5 的欄位規則不符（人數、座位號、金額上限等）
  * - unsupportedTableSize：不支援的牌桌人數
+ * - stackTooSmall：玩家籌碼不足以支付盲注或前注（4.3；H4 GG 匯入以 8.5 的文字回報）
+ * - sidePot：切出 2 個以上的池（AssembleOptions.rejectSidePots 時；GG 第一版不支援邊池，8.3、HQ21）
+ * - winnerMismatch：攤牌資料齊全，但收回者與 4.7 判定的贏家不符（來源 gg，8.3「輸贏與牌力判定不符」）
  * - amountFormatMismatch：同一手金額格式不一致（PokerStars 方言的金額單位還原，第 9 節）
  * - contentMismatch：與依解析結果重算的文字不一致（PokerStars 方言的最終檢查）
  */
@@ -60,6 +63,9 @@ export type ParseErrorCode =
   | 'incomplete'
   | 'invalidDetail'
   | 'unsupportedTableSize'
+  | 'stackTooSmall'
+  | 'sidePot'
+  | 'winnerMismatch'
   | 'amountFormatMismatch'
   | 'contentMismatch'
 
@@ -216,6 +222,8 @@ export interface AssembleOptions {
   amountUnit: AmountUnit
   /** strict：有攤牌時必須有攤牌標記、沒有攤牌時不得有；optional：可有可無（GG，8.3 需驗證） */
   showdownMarker: 'strict' | 'optional'
+  /** true：4.6 切出 2 個以上的池時以 sidePot 拒絕（GG 第一版不支援邊池，8.3、14 節 HQ21） */
+  rejectSidePots?: boolean
 }
 
 /** 解析成功的一手（與往返測試比對的欄位，第 9 節） */
@@ -273,6 +281,17 @@ export function assembleHand(raw: RawHand, options: AssembleOptions): ParseStep<
 
   // ---- 前注、盲注、straddle（4.1、4.2） ----
   const forced = forcedSeats(seatNos, raw.buttonSeat, raw.straddle !== null)
+  // 4.3 籌碼限制：stack 必須大於發牌前要放的前注 + 盲注（或 straddle）。在核對盲注行之前檢查，
+  // 讓「籌碼不足以支付盲注或前注」的手牌以這個原因拒絕（8.5），而不是盲注金額不符
+  {
+    const anteClaim = raw.antes[0]?.amount ?? 0
+    const straddleClaim = raw.straddle ? 2 * raw.bb : 0
+    for (const s of raw.seats) {
+      const blind =
+        s.seatNo === forced.sbSeat ? raw.sb : s.seatNo === forced.bbSeat ? raw.bb : s.seatNo === forced.straddleSeat ? straddleClaim : 0
+      if (s.stack <= anteClaim + blind) return fail('stackTooSmall', s.line)
+    }
+  }
   const checkPost = (post: RawPost | null, seat: number | null, amount: number): ParseIssue | null => {
     if (!post) return { code: 'blindMismatch', line: raw.endLine }
     const r = seatOf(post.name, post.line)
@@ -331,12 +350,6 @@ export function assembleHand(raw: RawHand, options: AssembleOptions): ParseStep<
     mucked: mucked.has(s.seatNo),
     name: seatNameFor(s.name, s.seatNo === heroSeat),
   }))
-
-  // 4.3 籌碼限制：stack 必須大於發牌前要放的前注 + 盲注（或 straddle）
-  for (const s of raw.seats) {
-    const blind = s.seatNo === forced.sbSeat ? raw.sb : s.seatNo === forced.bbSeat ? raw.bb : s.seatNo === forced.straddleSeat ? straddle : 0
-    if (s.stack <= ante + blind) return fail('blindMismatch', s.line)
-  }
 
   // ---- 行動重播（4.2–4.5） ----
   const actions: Action[] = []
@@ -416,6 +429,7 @@ export function assembleHand(raw: RawHand, options: AssembleOptions): ParseStep<
   const pre = analyzeDetail(base, board)
   if (!pre.ok) return fail(pre.issue.code === 'illegalAction' ? 'illegalAction' : 'invalidDetail', null)
   const { pots, totalPot } = pre.analysis
+  if (options.rejectSidePots && pots.length > 1) return fail('sidePot', null)
   if (raw.summary.totalPot !== totalPot) return fail('potMismatch', raw.summary.line)
   if (rake > totalPot) return fail('potMismatch', raw.summary.line)
   const afterRake = potsAfterRake(pots, rake)
@@ -456,7 +470,13 @@ export function assembleHand(raw: RawHand, options: AssembleOptions): ParseStep<
   // ---- 3.2–3.5 欄位規則、3.9 完整判定、摘要推導 ----
   if (!handDetailSchema.safeParse(detail).success) return fail('invalidDetail', null)
   const hand = { source: options.source, board, detail }
-  if (classifyHand(hand) !== 'complete') return fail('incomplete', null)
+  if (classifyHand(hand) !== 'complete') {
+    // GG：攤牌資料齊全（每位攤牌者亮牌或蓋牌、公牌 5 張、每池有人亮牌）時，未通過的只剩「收回者 = 4.7 的贏家」（8.3）
+    if (options.source === 'gg' && full.analysis.state.status === 'showdown' && isShowdownComplete(detail, board, full.analysis)) {
+      return fail('winnerMismatch', raw.collects[0]?.line ?? null)
+    }
+    return fail('incomplete', null)
+  }
   const summary = summarizeHand(hand)
   return {
     ok: true,

@@ -146,7 +146,7 @@ export function determineWinners(detail: HandDetail, board: readonly Card[], ana
 }
 
 /** 4.7 攤牌資料是否齊全：每位攤牌對手亮牌（2 張）或蓋牌、Hero 有手牌、公牌 5 張、每個池至少一位有資格者有手牌 */
-function showdownComplete(detail: HandDetail, board: readonly Card[], analysis: DetailAnalysis): boolean {
+export function isShowdownComplete(detail: HandDetail, board: readonly Card[], analysis: DetailAnalysis): boolean {
   if (analysis.state.status !== 'showdown') return true
   if (board.length !== 5) return false
   for (const seat of analysis.showdownSeats) {
@@ -163,7 +163,7 @@ function showdownComplete(detail: HandDetail, board: readonly Card[], analysis: 
  */
 export function computeCollected(detail: HandDetail, board: readonly Card[], analysis?: DetailAnalysis): Collected[] | null {
   const a = analysis ?? analyzeOrNull({ ...detail, collected: [] }, board)
-  if (!a || a.state.status === 'betting' || !showdownComplete(detail, board, a)) return null
+  if (!a || a.state.status === 'betting' || !isShowdownComplete(detail, board, a)) return null
   const winners = determineWinners(detail, board, a)
   if (!winners || winners.some((w) => w === null)) return null
   return distributePots(a.pots, detail.rake, winners as number[][], detail.seats.map((s) => s.seatNo), detail.buttonSeat)
@@ -211,7 +211,7 @@ function isComplete(hand: ClassifyInput, detail: HandDetail, analysis: DetailAna
   if (state.status === 'betting') return false
   const expectedBoard = state.status === 'foldEnded' ? boardCountFor(state.street) : 5
   if (hand.board.length !== expectedBoard) return false
-  if (!showdownComplete(detail, hand.board, analysis)) return false
+  if (!isShowdownComplete(detail, hand.board, analysis)) return false
   return collectedValid(hand, detail, analysis)
 }
 
