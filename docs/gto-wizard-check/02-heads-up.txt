@@ -1,0 +1,29 @@
+PokerStars Hand #7700000000000102:  Hold'em No Limit ($100/$200) - 2026/09/30 21:30:00
+Table 'PokerRoad' 2-max Seat #1 is the button
+Seat 1: Hero ($20000 in chips)
+Seat 2: Villain2 ($20000 in chips)
+Hero: posts small blind $100
+Villain2: posts big blind $200
+*** HOLE CARDS ***
+Dealt to Hero [Ah Kh]
+Hero: calls $100
+Villain2: checks
+*** FLOP *** [2c 7d 9h]
+Villain2: checks
+Hero: bets $200
+Villain2: calls $200
+*** TURN *** [2c 7d 9h] [Js]
+Villain2: checks
+Hero: checks
+*** RIVER *** [2c 7d 9h Js] [4c]
+Villain2: checks
+Hero: checks
+*** SHOW DOWN ***
+Hero: shows [Ah Kh] (high card Ace)
+Villain2: shows [Qs Qd] (a pair of Queens)
+Villain2 collected $800 from pot
+*** SUMMARY ***
+Total pot $800 | Rake $0
+Board [2c 7d 9h Js 4c]
+Seat 1: Hero (button) (small blind) showed [Ah Kh] and lost with high card Ace
+Seat 2: Villain2 (big blind) showed [Qs Qd] and won ($800) with a pair of Queens

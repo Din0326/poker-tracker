@@ -56,3 +56,37 @@ export async function openImportFromList(page: Page): Promise<void> {
 export async function chooseImportFiles(page: Page, files: UploadFile[]): Promise<void> {
   await importInput(page).setInputFiles(files)
 }
+
+/**
+ * 模擬匯入寫入失敗：匯入在 Web Worker 寫入（ggImport.worker），替換 Worker 建構子，先在 Worker 內讓 hands 表的
+ * 第 3 次 add / put 丟出錯誤，再載入原本的 Worker 模組（App 程式碼不含任何測試用分支）。須在 page.goto 之前呼叫。
+ */
+export async function failThirdHandWrite(page: Page): Promise<void> {
+  await page.addInitScript(() => {
+    const Original = window.Worker
+    window.Worker = class extends Original {
+      constructor(url: string | URL, options?: WorkerOptions) {
+        const href = new URL(String(url), location.href).href
+        if (!href.includes('ggImport.worker')) {
+          super(url, options)
+          return
+        }
+        const src = `
+          const queue = []
+          self.onmessage = (e) => queue.push(e)
+          let n = 0
+          for (const m of ['add', 'put']) {
+            const orig = IDBObjectStore.prototype[m]
+            IDBObjectStore.prototype[m] = function (...args) {
+              if (this.name === 'hands' && ++n === 3) throw new DOMException('injected', 'QuotaExceededError')
+              return orig.apply(this, args)
+            }
+          }
+          await import(${JSON.stringify(href)})
+          for (const e of queue) self.onmessage(e)
+        `
+        super(URL.createObjectURL(new Blob([src], { type: 'text/javascript' })), { type: 'module' })
+      }
+    }
+  })
+}

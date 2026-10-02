@@ -1,0 +1,27 @@
+PokerStars Hand #7700000000000104:  Hold'em No Limit ($100/$200) - 2026/09/30 22:30:00
+Table 'PokerRoad' 3-max Seat #1 is the button
+Seat 1: Hero ($1000 in chips)
+Seat 2: Villain2 ($3000 in chips)
+Seat 3: Villain3 ($5000 in chips)
+Villain2: posts small blind $100
+Villain3: posts big blind $200
+*** HOLE CARDS ***
+Dealt to Hero [Ah Ad]
+Hero: raises $800 to $1000 and is all-in
+Villain2: raises $2000 to $3000 and is all-in
+Villain3: calls $2800
+*** FLOP *** [2c 7d 9h]
+*** TURN *** [2c 7d 9h] [Js]
+*** RIVER *** [2c 7d 9h Js] [4c]
+*** SHOW DOWN ***
+Villain2: shows [Kh Kd] (a pair of Kings)
+Villain3: shows [Qh Qd] (a pair of Queens)
+Hero: shows [Ah Ad] (a pair of Aces)
+Villain2 collected $4000 from side pot
+Hero collected $3000 from main pot
+*** SUMMARY ***
+Total pot $7000 Main pot $3000. Side pot $4000. | Rake $0
+Board [2c 7d 9h Js 4c]
+Seat 1: Hero (button) showed [Ah Ad] and won ($3000) with a pair of Aces
+Seat 2: Villain2 (small blind) showed [Kh Kd] and won ($4000) with a pair of Kings
+Seat 3: Villain3 (big blind) showed [Qh Qd] and lost with a pair of Queens

@@ -16,8 +16,8 @@ import {
   slotButton,
 } from './handForm'
 import { insertLine, ggExample, withHandId } from '../../unit/helpers/ggText'
-import { brokenZip, chooseImportFiles, ggTxt, openImportFromList, oversizedZip, txtFile } from './ggImport'
-import { H_79, H_GG, H_MEMO, H_SIDE, fixtureHands } from './hands'
+import { brokenZip, chooseImportFiles, failThirdHandWrite, ggTxt, openImportFromList, oversizedZip, tooManyEntriesZip, txtFile } from './ggImport'
+import { H_79, H_GG, H_MEMO, H_MTT, H_PARTIAL, H_SIDE, fixtureHands, partialHand } from './hands'
 import { DB_NAME, putRecords } from './idb'
 import { groupByButton, manySessions, openReport, reportTab } from './report'
 import { chooseImportFile, openActions } from './settings'
@@ -1296,6 +1296,144 @@ export const ggImportStates: { name: string; setup: (page: Page) => Promise<void
     setup: async (page) => {
       await seed(page)
       await openHandsTab(page)
+    },
+  },
+]
+
+// ---- H5 整體驗收：補齊 v2 各畫面中尚未涵蓋的主要狀態（SPEC-v2-hands 12.3 H5 第 3 項） ----
+
+export const h5States: { name: string; setup: (page: Page) => Promise<void> }[] = [
+  {
+    // H1 完整模式轉牌：BB 加注全下後輪到你（跟注 / 棄牌、剩餘籌碼）
+    name: 'hand-turn-allin',
+    setup: async (page) => {
+      await toFlopAction(page)
+      await actionButton(page, '過牌').click()
+      await betTo(page, '下注', '700')
+      await actionButton(page, '跟注 $700').click()
+      await dealStreet(page, ['9s'], '開始轉牌')
+      await actionButton(page, '過牌').click()
+      await betTo(page, '下注', '1600')
+      await betTo(page, '加注', '15900')
+      await actionButton(page, '跟注 $14,300').waitFor()
+      // 行動紀錄較長：捲到底，最新的行動、底池與目前下注額才在固定的行動列上方
+      await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight))
+    },
+  },
+  {
+    // H1 新增手牌的「關聯場次」→「選擇其他場次…」可搜尋清單
+    name: 'hand-session-search',
+    setup: async (page) => {
+      await seed(page)
+      await openNewHand(page)
+      await page.getByLabel('關聯場次').selectOption({ label: '選擇其他場次…' })
+      await page.getByRole('dialog', { name: '選擇場次' }).waitFor()
+    },
+  },
+  {
+    // H1 編輯簡易備忘手牌（含「補齊為完整手牌」按鈕）
+    name: 'hand-edit-simple',
+    setup: async (page) => {
+      await seedHands(page)
+      await page.clock.setFixedTime(FIXED_NOW)
+      await page.goto(`./#/hands/${H_MEMO}/edit`)
+      await page.getByTestId('simple-fields').waitFor()
+    },
+  },
+  {
+    // H1 補齊為完整手牌：完整模式步驟 1，備忘的手牌、大盲、時間預填
+    name: 'hand-complete-from-simple',
+    setup: async (page) => {
+      await seedHands(page)
+      await page.clock.setFixedTime(FIXED_NOW)
+      await page.goto(`./#/hands/${H_MEMO}/edit?complete=1`)
+      await page.getByTestId('setup-step').waitFor()
+    },
+  },
+  {
+    // H1 編輯完整手牌（停在結果步驟）
+    name: 'hand-edit-complete',
+    setup: async (page) => {
+      await seedHands(page)
+      await page.clock.setFixedTime(FIXED_NOW)
+      await page.goto(`./#/hands/${H_79}/edit`)
+      await page.getByTestId('result-step').waitFor()
+    },
+  },
+  {
+    name: 'hand-edit-leave-confirm',
+    setup: async (page) => {
+      await seedHands(page)
+      await page.clock.setFixedTime(FIXED_NOW)
+      await page.goto('./#/')
+      await page.goto(`./#/hands/${H_MEMO}/edit`)
+      await page.getByLabel('備註').fill('改過')
+      await page.getByRole('button', { name: '返回', exact: true }).click()
+      await page.getByRole('dialog', { name: '放棄變更？' }).waitFor()
+    },
+  },
+  {
+    // H2 未完成的完整紀錄：詳情的「繼續補齊」
+    name: 'hand-detail-unfinished',
+    setup: async (page) => {
+      await seedHands(page)
+      await putRecords(page, 'hands', [partialHand()])
+      await openHandsTab(page)
+      await page.locator(`[data-hand-id="${H_PARTIAL}"]`).click()
+      await page.getByTestId('detail-unfinished').waitFor()
+    },
+  },
+  {
+    // H2 錦標賽簡易備忘（籌碼單位）
+    name: 'hand-detail-tournament',
+    setup: async (page) => openHandDetailAt(page, H_MTT),
+  },
+  {
+    name: 'hand-detail-not-found',
+    setup: async (page) => {
+      await seedHands(page)
+      await page.goto('./#/hands/00000000-0000-4000-8000-00000000dead')
+      await page.getByText('找不到這手牌').waitFor()
+    },
+  },
+  {
+    // H4 解析中按「取消」後
+    name: 'hand-import-cancelled',
+    setup: async (page) => {
+      await freezeParsingAfterTwoBatches(page)
+      await openImportPage(page)
+      await chooseImportFiles(page, [ggTxt('gg.txt', 600)])
+      await page.getByTestId('import-progress').filter({ hasText: '解析中 400 / 600 手' }).waitFor()
+      await page.getByRole('button', { name: '取消' }).click()
+      await page.getByTestId('import-status').waitFor()
+    },
+  },
+  {
+    // H4 可匯入 0 手：只顯示「返回」
+    name: 'hand-import-none',
+    setup: async (page) => {
+      await openImportPage(page)
+      await chooseImportFiles(page, [txtFile('bad.txt', withHandId(ggExample().trimEnd(), 'TM1000000001'))])
+      await page.getByTestId('import-summary').waitFor()
+    },
+  },
+  {
+    // H4 寫入失敗整批還原：「匯入失敗，沒有任何手牌被寫入」
+    name: 'hand-import-failed',
+    setup: async (page) => {
+      await failThirdHandWrite(page)
+      await openImportPage(page)
+      await chooseImportFiles(page, [ggTxt('gg.txt', 5)])
+      await page.getByRole('button', { name: '匯入 5 手' }).click()
+      await page.getByRole('alert').filter({ hasText: '匯入失敗' }).waitFor()
+    },
+  },
+  {
+    name: 'hand-import-error-too-many',
+    setup: async (page) => {
+      await openImportPage(page)
+      await chooseImportFiles(page, [tooManyEntriesZip()])
+      await page.getByTestId('import-error').waitFor()
     },
   },
 ]

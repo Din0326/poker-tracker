@@ -122,7 +122,7 @@ export function ManageList({ items, busy, emptyText, onAdd, onMove, onMore }: Li
       {archived.length > 0 && (
         <details data-testid="archived-section" className="group mt-4">
           <summary className="flex min-h-(--touch-min) cursor-pointer list-none items-center gap-1 px-1 text-sm font-semibold text-(--color-text-muted) [&::-webkit-details-marker]:hidden">
-            <ChevronRight aria-hidden="true" size={18} className="transition-transform group-open:rotate-90" />
+            <ChevronRight aria-hidden="true" size={18} className="transition-transform duration-(--motion-duration) motion-reduce:transition-none group-open:rotate-90" />
             {t.archivedSection(archived.length)}
           </summary>
           <div className="mt-1">

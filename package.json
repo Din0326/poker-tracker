@@ -1,7 +1,7 @@
 {
   "name": "poker-tracker",
   "private": true,
-  "version": "1.0.0",
+  "version": "2.0.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -16,7 +16,8 @@
     "check:strings": "node scripts/check-hardcoded.mjs strings",
     "check:colors": "node scripts/check-hardcoded.mjs colors",
     "check": "npm run typecheck && npm run lint && npm run check:strings && npm run check:colors && npm run test",
-    "screenshots": "node scripts/screenshots.mjs"
+    "screenshots": "node scripts/screenshots.mjs",
+    "gto-check": "jiti scripts/make-gto-wizard-check.ts"
   },
   "dependencies": {
     "@hookform/resolvers": "5.9.1",

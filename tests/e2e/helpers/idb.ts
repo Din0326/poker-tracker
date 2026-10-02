@@ -98,3 +98,57 @@ export async function putRecords(page: Page, store: StoreName, records: unknown[
     { dbName: DB_NAME, store, records },
   )
 }
+
+/**
+ * 模擬 v1.2–v1.4 正式版（Dexie version 2，原生版本 20）已在裝置上的資料庫：以原生 API 建立 version 2 的四張表與索引
+ * （3.7 version 2 的 stores 定義），再以 putRecords 寫入資料（Worker 寫入，不指定版本開啟，維持版本 20）。
+ * 須在 App 尚未開啟資料庫前呼叫（例如先開同源的靜態檔 `./icons/icon-192.png`，不執行 App）。
+ */
+export async function createV2Database(
+  page: Page,
+  data: { sessions: unknown[]; venues: unknown[]; stakes: unknown[]; settings: { key: string; value: unknown }[] },
+): Promise<void> {
+  await page.evaluate(
+    (dbName) =>
+      new Promise<void>((resolve, reject) => {
+        const req = indexedDB.open(dbName, 20)
+        req.onupgradeneeded = () => {
+          const db = req.result
+          const s = db.createObjectStore('sessions', { keyPath: 'id' })
+          for (const k of ['type', 'startAt', 'venueId', 'stakeId']) s.createIndex(k, k)
+          const v = db.createObjectStore('venues', { keyPath: 'id' })
+          v.createIndex('name', 'name')
+          v.createIndex('archived', 'archived')
+          db.createObjectStore('stakes', { keyPath: 'id' }).createIndex('archived', 'archived')
+          db.createObjectStore('settings', { keyPath: 'key' })
+        }
+        req.onsuccess = () => {
+          req.result.close()
+          resolve()
+        }
+        req.onerror = () => reject(req.error)
+      }),
+    DB_NAME,
+  )
+  await putRecords(page, 'venues', data.venues)
+  await putRecords(page, 'stakes', data.stakes)
+  await putRecords(page, 'sessions', data.sessions)
+  await putRecords(page, 'settings', data.settings)
+}
+
+/** 原生 IndexedDB 版本與 object store 名稱（不觸發升級） */
+export async function nativeDbInfo(page: Page): Promise<{ version: number; stores: string[] }> {
+  return page.evaluate(
+    (dbName) =>
+      new Promise<{ version: number; stores: string[] }>((resolve, reject) => {
+        const req = indexedDB.open(dbName)
+        req.onsuccess = () => {
+          const db = req.result
+          resolve({ version: db.version, stores: [...db.objectStoreNames].sort() })
+          db.close()
+        }
+        req.onerror = () => reject(req.error)
+      }),
+    DB_NAME,
+  )
+}
