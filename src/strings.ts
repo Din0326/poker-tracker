@@ -1045,6 +1045,18 @@ export const strings = {
     persistentStorage: '持久儲存',
     persisted: '已取得',
     notPersisted: '未取得',
+    /** 8.8（v1.6）：持久儲存「未取得」時的說明 */
+    notPersistedNote: '未取得時，裝置空間不足時系統可能清除本 App 的資料，請更常備份。',
+    /** 8.8（v1.6）資料保存說明 */
+    dataSafety: {
+      title: '關於資料保存',
+      items: [
+        '紀錄只存在這台裝置，沒有雲端同步。',
+        '在 iPhone 刪除主畫面的 App 圖示，或清除 Safari 的網站資料，會一併刪除這台裝置上的所有紀錄。',
+        '換手機時，請先在舊手機匯出備份檔，再到新手機匯入。',
+        '建議定期匯出備份，存到「檔案」App 或其他地方。',
+      ],
+    },
     dataCount: '資料量',
     dataCountValue: (sessions: number, venues: number, stakes: number) =>
       `${sessions} 場 · ${venues} 個場地 · ${stakes} 個盲注`,
