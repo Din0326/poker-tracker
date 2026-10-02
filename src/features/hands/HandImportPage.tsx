@@ -39,7 +39,7 @@ function RejectGroup({ group }: { group: GgRejectGroup }) {
       </p>
       <details className="group mt-1">
         <summary className="flex min-h-(--touch-min) cursor-pointer list-none items-center gap-1 text-sm font-semibold text-(--color-accent) [&::-webkit-details-marker]:hidden">
-          <ChevronDown aria-hidden="true" size={16} className="transition-transform group-open:rotate-180" />
+          <ChevronDown aria-hidden="true" size={16} className="transition-transform duration-(--motion-duration) motion-reduce:transition-none group-open:rotate-180" />
           {t.showSamples(countText(Math.min(group.count, GG_REJECT_SAMPLE_LIMIT)))}
         </summary>
         <ul className="num mt-1 space-y-1 text-sm text-(--color-text-muted)">
