@@ -20,7 +20,7 @@ import {
 } from './handListModel'
 import { exportRequestFor, type ExportRequest } from './handExportModel'
 import { HAND_BATCH_SIZE, memoryFor, rememberFilters, rememberVisible } from './handsListMemory'
-import { HANDS_PATH, handNewPath, sessionIdFromSearch } from './handPaths'
+import { HAND_IMPORT_PATH, HANDS_PATH, handNewPath, sessionIdFromSearch } from './handPaths'
 import { refreshHands, retryHands, useHandsState } from './handsStore'
 
 const t = strings.hands.list
@@ -30,8 +30,8 @@ const headerActionClass =
   'flex min-h-(--touch-min) min-w-(--touch-min) items-center justify-center rounded-(--radius-control) px-2 font-semibold whitespace-nowrap text-(--color-accent)'
 
 /**
- * 標題列右上角（6.1）：「＋ 新增手牌」（不關聯場次）與「匯出」（7.1：匯出目前篩選結果中的完整手牌）。
- * 「匯出」只在列表有手牌時顯示；「匯入」於 H4 實作匯入頁時加入。
+ * 標題列右上角（6.1）：「＋ 新增手牌」（不關聯場次）、「匯出」（7.1：匯出目前篩選結果中的完整手牌）、「匯入」（→ 8.2 匯入 GG 手牌）。
+ * 「匯出」只在列表有手牌時顯示。
  */
 function HeaderActions({ onExport }: { onExport: (() => void) | null }) {
   return (
@@ -44,6 +44,9 @@ function HeaderActions({ onExport }: { onExport: (() => void) | null }) {
           {strings.hands.export.listButton}
         </button>
       )}
+      <Link to={HAND_IMPORT_PATH} aria-label={strings.hands.ggImport.listButtonLabel} className={headerActionClass}>
+        {strings.hands.ggImport.listButton}
+      </Link>
     </div>
   )
 }
@@ -160,12 +163,15 @@ function HandsPage({ sessionId }: { sessionId: string | null }) {
       </div>
     )
   } else if (state.hands.length === 0) {
-    // 6.1 空狀態：沒有任何手牌（「匯入 GG 手牌」於 H4 實作匯入頁時加入）
+    // 6.1 空狀態：沒有任何手牌時顯示「新增第一手」、「匯入 GG 手牌」兩個按鈕
     body = (
       <div className="flex flex-col items-center gap-4 py-16 text-center">
         <p className="text-lg">{t.empty.noHands}</p>
         <Link to={handNewPath()} className={primaryButtonClass}>
           {t.empty.addFirst}
+        </Link>
+        <Link to={HAND_IMPORT_PATH} className={secondaryButtonClass}>
+          {strings.hands.ggImport.emptyButton}
         </Link>
       </div>
     )
@@ -204,6 +210,7 @@ function HandsPage({ sessionId }: { sessionId: string | null }) {
       title={strings.pages.hands}
       {...(sessionId !== null ? { backTo: `/sessions/${encodeURIComponent(sessionId)}` } : {})}
       action={<HeaderActions onExport={canExport ? openExport : null} />}
+      headerLayout="inline"
     >
       {body}
       {exportRequest && <HandExportSheet request={exportRequest} onClose={() => setExportRequest(null)} />}

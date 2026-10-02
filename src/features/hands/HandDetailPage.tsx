@@ -1,4 +1,4 @@
-import { ChevronRight, FileText, Pencil, Share, Trash } from 'lucide-react'
+import { ChevronRight, FileCode, FileText, Pencil, Share, Trash } from 'lucide-react'
 import { useEffect, useState, type ReactNode } from 'react'
 import { Link, useLocation, useNavigate, useParams } from 'react-router'
 import { BottomSheet } from '../../components/BottomSheet'
@@ -192,6 +192,8 @@ function HandDetail({ id }: { id: string }) {
   // 7.1「匯出這手」、6.2「查看匯出文字」
   const [exportOpen, setExportOpen] = useState(false)
   const [textOpen, setTextOpen] = useState(false)
+  // 6.2「原始文字」（source 為 gg）
+  const [rawOpen, setRawOpen] = useState(false)
 
   useEffect(() => {
     let cancelled = false
@@ -402,6 +404,13 @@ function HandDetail({ id }: { id: string }) {
             {t.export.viewText}
           </button>
         )}
+        {/* 6.2：原始文字只在 source 為 gg 時顯示（rawText，等寬字型、「複製」按鈕） */}
+        {hand.source === 'gg' && hand.rawText !== null && (
+          <button type="button" onClick={() => setRawOpen(true)} className={actionClass}>
+            <FileCode aria-hidden="true" size={18} />
+            {t.ggImport.rawText}
+          </button>
+        )}
         <button type="button" disabled={busy} onClick={() => setSheet(true)} className={`${dangerButtonClass} w-full gap-2`}>
           <Trash aria-hidden="true" size={18} />
           {d.delete}
@@ -420,6 +429,15 @@ function HandDetail({ id }: { id: string }) {
 
       {exportOpen && <HandExportSheet request={exportRequestFor([hand], true)} onClose={() => setExportOpen(false)} />}
       {textOpen && <HandExportTextSheet text={exportPokerStars([hand], heroName)} onClose={() => setTextOpen(false)} />}
+      {rawOpen && hand.rawText !== null && (
+        <HandExportTextSheet
+          text={hand.rawText}
+          title={t.ggImport.rawText}
+          label={t.ggImport.rawTextLabel}
+          testId="raw-text"
+          onClose={() => setRawOpen(false)}
+        />
+      )}
 
       {/* 6.4 刪除確認：時間、Hero 手牌、位置、結果 */}
       <BottomSheet open={sheet} title={t.deleteSheet.title} onClose={() => setSheet(false)}>

@@ -1,6 +1,8 @@
 // 手牌畫面的路由（SPEC-v2-hands 5.1）
 export const HANDS_PATH = '/hands'
 export const HAND_NEW_PATH = `${HANDS_PATH}/new`
+/** 匯入 GG 手牌 `#/hands/import`（8.2） */
+export const HAND_IMPORT_PATH = `${HANDS_PATH}/import`
 
 /** 新增手牌；帶 sessionId 時預先關聯該場（5.1、6.3） */
 export function handNewPath(sessionId?: string): string {

@@ -1,4 +1,6 @@
+import { ChevronRight } from 'lucide-react'
 import { useState, type FormEvent } from 'react'
+import { Link } from 'react-router'
 import { FieldError } from '../../components/FieldError'
 import { inputClass, secondaryButtonClass } from '../../components/controlStyles'
 import { heroNameIssue, type HeroNameIssue } from '../../domain/hands'
@@ -6,6 +8,7 @@ import { describedBy } from '../../lib/aria'
 import { useAppData } from '../../lib/appData'
 import { showGlobalToast } from '../../lib/globalToast'
 import { strings } from '../../strings'
+import { HAND_IMPORT_PATH } from '../hands/handPaths'
 import { ERROR_TOAST_MS, SUCCESS_TOAST_MS } from './manageShared'
 import { SettingsSection, cardClass } from './SettingsSection'
 
@@ -20,7 +23,7 @@ function issueText(issue: HeroNameIssue | null): string | undefined {
 // SPEC-v2-hands 10.6、7.3：設定頁「手牌」區塊（顯示設定之後、資料備份之前）。
 // 匯出名稱存入 Settings.handHeroName（未設定時視為 Hero），儲存後即時生效於之後的匯出。
 // 驗證時機同 v1 5.4：按「儲存」時檢查；已顯示錯誤後修改即時重新檢查。
-// 「匯入 GG 手牌（實驗功能）」入口於 H4 實作匯入頁時加入。
+// 「匯入 GG 手牌（實驗功能）」入口（5.1、10.6）→ #/hands/import（8.2）。
 export function HandsSection({ initial }: { initial: string }) {
   const { repos } = useAppData()
   const [name, setName] = useState(initial)
@@ -75,6 +78,10 @@ export function HandsSection({ initial }: { initial: string }) {
           {t.heroNameHint}
         </p>
       </form>
+      <Link to={HAND_IMPORT_PATH} className={`mt-3 flex min-h-12 items-center gap-2 px-4 ${cardClass}`}>
+        <span className="flex-1">{strings.hands.ggImport.settingsEntry}</span>
+        <ChevronRight aria-hidden="true" size={20} className="text-(--color-text-muted)" />
+      </Link>
     </SettingsSection>
   )
 }

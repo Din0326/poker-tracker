@@ -7,17 +7,21 @@ type Props = {
   backTo?: string
   /** 標題列右上角操作 */
   action?: ReactNode
+  /** 標題旁的小標籤（見 PageHeader） */
+  badge?: ReactNode
+  /** 標題列排版（見 PageHeader） */
+  headerLayout?: 'centered' | 'inline'
   children?: ReactNode
 }
 
 // 分頁根頁面與推入式子頁共用的頁面框架；子頁以 PUSH 進入時播放推入動效
-export function Page({ title, backTo, action, children }: Props) {
+export function Page({ title, backTo, action, badge, headerLayout, children }: Props) {
   const navigationType = useNavigationType()
   const isPushedSubPage = backTo !== undefined && navigationType === 'PUSH'
 
   return (
     <div className={isPushedSubPage ? 'anim-push' : undefined}>
-      <PageHeader title={title} {...(backTo !== undefined ? { backTo } : {})} action={action} />
+      <PageHeader title={title} {...(backTo !== undefined ? { backTo } : {})} action={action} badge={badge} {...(headerLayout ? { layout: headerLayout } : {})} />
       <main className="px-4">{children}</main>
     </div>
   )

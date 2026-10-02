@@ -49,3 +49,9 @@ export function resetHandsListMemory(): void {
   sessionScopedMemory.filters = DEFAULT_HAND_FILTERS
   sessionScopedMemory.visible = null
 }
+
+/** 8.2 GG 匯入成功後前往手牌列表並篩選來源 = GG（其餘篩選回到預設、從頂端開始） */
+export function showGgHandsInList(): void {
+  handsTabMemory.filters = { ...DEFAULT_HAND_FILTERS, source: 'gg' }
+  handsTabMemory.visible = null
+}

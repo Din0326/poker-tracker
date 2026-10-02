@@ -3,8 +3,8 @@ import { defineConfig, devices } from '@playwright/test'
 // 10.1：WebKit + iPhone 14 viewport，模擬主要使用裝置
 // 截圖只在 npm run screenshots 時執行
 const screenshotsIgnore = process.env.SCREENSHOTS_DIR ? [] : ['**/screenshots.spec.ts']
-// 效能量測（P3-3 列表、P4-5 報表、H2 手牌列表與詳情）另成一個 project，等其他測試跑完才執行，避免平行測試搶 CPU 影響數字
-const perfSpec = ['**/sessions-perf.spec.ts', '**/report-perf.spec.ts', '**/hands-perf.spec.ts']
+// 效能量測（P3-3 列表、P4-5 報表、H2 手牌列表與詳情、H4 GG 匯入）另成一個 project，等其他測試跑完才執行，避免平行測試搶 CPU 影響數字
+const perfSpec = ['**/sessions-perf.spec.ts', '**/report-perf.spec.ts', '**/hands-perf.spec.ts', '**/gg-import-perf.spec.ts']
 // 需要寫入大量資料（≥ 1,000 筆）的測試加上 @heavy tag，移出平行的主 project，在主 project 之後以單一 worker 序列執行，
 // 避免大量寫入與渲染造成 CPU 尖峰，讓同時執行的其他測試偶發逾時
 const HEAVY_TAG = /@heavy/

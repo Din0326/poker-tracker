@@ -15,6 +15,8 @@ import {
   preflop79,
   slotButton,
 } from './handForm'
+import { insertLine, ggExample, withHandId } from '../../unit/helpers/ggText'
+import { brokenZip, chooseImportFiles, ggTxt, openImportFromList, oversizedZip, txtFile } from './ggImport'
 import { H_79, H_GG, H_MEMO, H_SIDE, fixtureHands } from './hands'
 import { DB_NAME, putRecords } from './idb'
 import { groupByButton, manySessions, openReport, reportTab } from './report'
@@ -1158,6 +1160,142 @@ export const handExportStates: { name: string; heavy?: boolean; setup: (page: Pa
       await openHandDetailAt(page, H_79)
       await page.getByRole('button', { name: '查看匯出文字' }).click()
       await page.getByRole('dialog', { name: '匯出文字' }).getByTestId('export-text').waitFor()
+    },
+  },
+]
+
+// ---- H4 GG 匯入：匯入頁各狀態、匯入手牌詳情、原始文字（SPEC-v2-hands 第 8 節、6.2） ----
+
+/**
+ * 讓解析停在進度中：前 2 次讓出主執行緒正常繼續（解析 2 批、400 手），第 3 次起的 scheduler.yield 永遠不 resolve（App 在有 scheduler.yield 時使用它，8.2）。
+ * 只用於測試頁面（addInitScript），App 程式碼不含測試用分支。
+ */
+export async function freezeParsingAfterTwoBatches(page: Page) {
+  await page.addInitScript(() => {
+    let calls = 0
+    ;(window as unknown as { scheduler: { yield: () => Promise<void> } }).scheduler = {
+      yield: () => (++calls <= 2 ? new Promise<void>((r) => setTimeout(r, 50)) : new Promise<void>(() => undefined)),
+    }
+  })
+}
+
+async function openImportPage(page: Page) {
+  await seed(page)
+  await openImportFromList(page)
+}
+
+/** 混合合法與不支援的手牌（非真實檔案，依 8.8 範例改寫） */
+function mixedGgText(): string {
+  const base = ggExample().trimEnd()
+  return [
+    withHandId(base, 'RC1000000001'),
+    withHandId(base, 'RC1000000002'),
+    withHandId(base.replace('Total pot $7.75', 'Total pot $7.8'), 'RC1000000003'),
+    withHandId(base, 'TM1000000004'),
+    withHandId(base.replace('*** FLOP ***', 'Hero: says hi\n*** FLOP ***'), 'RC1000000005'),
+    withHandId(insertLine(base, 11, 'Hero: straddle $0.5'), 'RC1000000006'),
+  ].join('\n\n\n')
+}
+
+async function importOneAndOpenDetail(page: Page) {
+  await openImportPage(page)
+  await chooseImportFiles(page, [ggTxt('gg.txt', 1)])
+  await page.getByRole('button', { name: '匯入 1 手' }).click()
+  await page.getByTestId('hand-list-summary').waitFor()
+  // 等「已匯入 1 手」提示消失，詳情內容完整入鏡
+  await page.getByTestId('global-toast-text').waitFor({ state: 'hidden' })
+  await page.getByTestId('hand-row').first().click()
+  await page.getByTestId('detail-result').waitFor()
+}
+
+export const ggImportStates: { name: string; setup: (page: Page) => Promise<void> }[] = [
+  {
+    // 選檔前：標題旁「實驗功能」標籤與說明
+    name: 'hand-import-idle',
+    setup: openImportPage,
+  },
+  {
+    name: 'hand-import-parsing',
+    setup: async (page) => {
+      await freezeParsingAfterTwoBatches(page)
+      await openImportPage(page)
+      await chooseImportFiles(page, [ggTxt('gg.txt', 600)])
+      await page.getByTestId('import-progress').filter({ hasText: '解析中 400 / 600 手' }).waitFor()
+    },
+  },
+  {
+    // 結果摘要：可匯入 / 重複 / 無法匯入，原因分組並展開一組明細
+    name: 'hand-import-preview',
+    setup: async (page) => {
+      await openImportPage(page)
+      await chooseImportFiles(page, [txtFile('mixed.txt', mixedGgText()), txtFile('copy.txt', withHandId(ggExample().trimEnd(), 'RC1000000001'))])
+      await page.getByTestId('import-summary').waitFor()
+      await page.getByText('查看前 1 筆明細').first().click()
+    },
+  },
+  {
+    // 選擇關聯場次：「選擇其他場次…」的可搜尋清單只列現金桌場次
+    name: 'hand-import-session',
+    setup: async (page) => {
+      await openImportPage(page)
+      await chooseImportFiles(page, [ggTxt('gg.txt', 3)])
+      await page.getByTestId('import-summary').waitFor()
+      await page.getByLabel('關聯場次').selectOption({ label: '選擇其他場次…' })
+      await page.getByRole('dialog', { name: '選擇場次' }).waitFor()
+    },
+  },
+  {
+    name: 'hand-import-error-too-large',
+    setup: async (page) => {
+      await openImportPage(page)
+      await chooseImportFiles(page, [oversizedZip()])
+      await page.getByTestId('import-error').waitFor()
+    },
+  },
+  {
+    name: 'hand-import-error-unzip',
+    setup: async (page) => {
+      await openImportPage(page)
+      await chooseImportFiles(page, [brokenZip()])
+      await page.getByTestId('import-error').waitFor()
+    },
+  },
+  {
+    // 匯入手牌詳情：GG / 實驗標示
+    name: 'hand-detail-gg-imported',
+    setup: importOneAndOpenDetail,
+  },
+  {
+    // 匯入手牌詳情的「原始文字」按鈕與原站手牌編號
+    name: 'hand-detail-gg-imported-actions',
+    setup: async (page) => {
+      await importOneAndOpenDetail(page)
+      await page.getByRole('button', { name: '原始文字' }).evaluate((el) => window.scrollTo(0, el.getBoundingClientRect().top + window.scrollY - 200))
+    },
+  },
+  {
+    name: 'hand-raw-text',
+    setup: async (page) => {
+      await importOneAndOpenDetail(page)
+      await page.getByRole('button', { name: '原始文字' }).click()
+      await page.getByRole('dialog', { name: '原始文字' }).getByTestId('raw-text').waitFor()
+    },
+  },
+  {
+    // 設定頁「手牌」區塊的匯入入口
+    name: 'settings-hands-import-entry',
+    setup: async (page) => {
+      await seed(page)
+      await page.getByRole('navigation', { name: '主要分頁' }).getByRole('link', { name: '設定' }).click()
+      await page.getByRole('link', { name: '匯入 GG 手牌（實驗功能）' }).evaluate((el) => window.scrollTo(0, el.getBoundingClientRect().top + window.scrollY - 300))
+    },
+  },
+  {
+    // 空狀態的「新增第一手」「匯入 GG 手牌」
+    name: 'hands-empty-import',
+    setup: async (page) => {
+      await seed(page)
+      await openHandsTab(page)
     },
   },
 ]

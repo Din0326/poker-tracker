@@ -5,6 +5,7 @@ import { openRecordPage } from './helpers/record'
 import {
   dismissInstallBanner,
   handExportStates,
+  ggImportStates,
   handListStates,
   handStates,
   p6States,
@@ -129,7 +130,7 @@ const checks: Check[] = [
       await expectContrastAA(page, s.name)
     },
   })),
-  ...[...stakingStates, ...settingsStates, ...p6States, ...handStates, ...handListStates, ...handExportStates].map<Check>((s) => ({
+  ...[...stakingStates, ...settingsStates, ...p6States, ...handStates, ...handListStates, ...handExportStates, ...ggImportStates].map<Check>((s) => ({
     name: s.name,
     heavy: 'heavy' in s && s.heavy === true,
     run: async (page) => {
