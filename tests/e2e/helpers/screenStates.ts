@@ -18,9 +18,9 @@ import {
 import { insertLine, ggExample, withHandId } from '../../unit/helpers/ggText'
 import { brokenZip, chooseImportFiles, failThirdHandWrite, ggTxt, openImportFromList, oversizedZip, tooManyEntriesZip, txtFile } from './ggImport'
 import { H_79, H_GG, H_MEMO, H_MTT, H_PARTIAL, H_SIDE, fixtureHands, partialHand } from './hands'
-import { DB_NAME, putRecords } from './idb'
+import { DB_NAME, createV2Database, putRecords } from './idb'
 import { groupByButton, manySessions, openReport, reportTab } from './report'
-import { chooseImportFile, openActions } from './settings'
+import { chooseImportFile, disableShare, openActions } from './settings'
 import {
   V_6BET,
   fixture,
@@ -1434,6 +1434,79 @@ export const h5States: { name: string; setup: (page: Page) => Promise<void> }[] 
       await openImportPage(page)
       await chooseImportFiles(page, [tooManyEntriesZip()])
       await page.getByTestId('import-error').waitFor()
+    },
+  },
+]
+
+// ---------------------------------------------------------------------------
+// P7 資料保護加強（v1 規格 v1.6、v2 規格 v2.4）
+// ---------------------------------------------------------------------------
+
+/** v1.4 正式版（Dexie version 2，原生 20）的資料庫：先開同源靜態檔（不執行 App）再以原生 API 建立 */
+async function seedOldV2Database(page: Page) {
+  await page.goto('./icons/icon-192.png')
+  await createV2Database(page, {
+    sessions: [...fixtureSessions, ...stakedSessions],
+    venues,
+    stakes,
+    settings: [{ key: 'lastType', value: 'cash' }],
+  })
+}
+
+export const p7States: { name: string; setup: (page: Page) => Promise<void> }[] = [
+  {
+    // v1 3.7 升級前的備份提示：舊版（version 2）且有資料
+    name: 'db-upgrade-prompt',
+    setup: async (page) => {
+      await seedOldV2Database(page)
+      await page.goto('./')
+      await page.getByTestId('db-upgrade-prompt').waitFor()
+    },
+  },
+  {
+    // v1 3.7 升級前的備份提示：【先匯出備份】下載後顯示「已備份」與【繼續更新】
+    name: 'db-upgrade-prompt-backed-up',
+    setup: async (page) => {
+      await disableShare(page)
+      await seedOldV2Database(page)
+      await page.goto('./')
+      await page.getByTestId('db-upgrade-prompt').waitFor()
+      await Promise.all([page.waitForEvent('download'), page.getByRole('button', { name: '先匯出備份' }).click()])
+      await page.getByTestId('db-upgrade-backed-up').waitFor()
+    },
+  },
+  {
+    // v1 8.8 資料保存說明與持久儲存「未取得」的說明（storage.persist 回傳 false）
+    name: 'settings-data-safety',
+    setup: async (page) => {
+      await page.addInitScript(() => {
+        Object.defineProperty(StorageManager.prototype, 'persisted', { value: async () => false, configurable: true })
+        Object.defineProperty(StorageManager.prototype, 'persist', { value: async () => false, configurable: true })
+      })
+      await seed(page)
+      await page.goto('./#/settings')
+      await page.getByTestId('persist-note').waitFor()
+      await page.evaluate(() => document.getElementById('settings-system')?.scrollIntoView({ block: 'start' }))
+    },
+  },
+  {
+    // v2 5.3 完整模式自動捲動：轉牌行動紀錄超出畫面，每次行動後最新行動與底池自動顯示在行動列之上（不手動捲動）
+    name: 'hand-auto-scroll',
+    setup: async (page) => {
+      await openNewHand(page)
+      await enterSetup79(page)
+      await preflop79(page)
+      await dealStreet(page, ['Kh', '7d', '2c'], '開始翻牌')
+      await actionButton(page, '過牌').click()
+      await betTo(page, '下注', '700')
+      await actionButton(page, '跟注 $700').click()
+      await dealStreet(page, ['9s'], '開始轉牌')
+      await actionButton(page, '過牌').click()
+      await betTo(page, '下注', '1600')
+      await betTo(page, '加注', '15900')
+      await actionButton(page, '跟注 $14,300').waitFor()
+      // 等自動捲動結束（2 個 frame + 200ms 動畫）
+      await page.waitForTimeout(400)
     },
   },
 ]

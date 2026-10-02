@@ -7,6 +7,7 @@ import {
   handExportStates,
   ggImportStates,
   h5States,
+  p7States,
   handListStates,
   handStates,
   p6States,
@@ -132,7 +133,7 @@ const checks: Check[] = [
       await expectContrastAA(page, s.name)
     },
   })),
-  ...[...stakingStates, ...settingsStates, ...p6States, ...handStates, ...handListStates, ...handExportStates, ...ggImportStates, ...h5States].map<Check>((s) => ({
+  ...[...stakingStates, ...settingsStates, ...p6States, ...handStates, ...handListStates, ...handExportStates, ...ggImportStates, ...h5States, ...p7States].map<Check>((s) => ({
     name: s.name,
     heavy: 'heavy' in s && s.heavy === true,
     run: async (page) => {
