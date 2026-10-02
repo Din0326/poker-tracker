@@ -20,7 +20,8 @@ import {
 // 以 axe-core 的 color-contrast 規則（WCAG 2 AA：一般文字 4.5:1、大字 3:1）檢查所有畫面與狀態，深淺色各一輪。
 // 畫面狀態與截圖共用 helpers/screenStates.ts；不排除規則、不略過元素。
 
-type Check = { name: string; run: (page: Page) => Promise<void> }
+// heavy：寫入大量資料的狀態，加上 @heavy tag，在序列執行的 heavy project 跑（見 playwright.config.ts）
+type Check = { name: string; heavy?: boolean; run: (page: Page) => Promise<void> }
 
 type ManualResult = { target: string; fg: string; bg: string; ratio: number; required: number }
 
@@ -130,6 +131,7 @@ const checks: Check[] = [
   })),
   ...[...stakingStates, ...settingsStates, ...p6States, ...handStates, ...handListStates, ...handExportStates].map<Check>((s) => ({
     name: s.name,
+    heavy: 'heavy' in s && s.heavy === true,
     run: async (page) => {
       await s.setup(page)
       await expectContrastAA(page, s.name)
@@ -164,7 +166,7 @@ for (const scheme of ['dark', 'light'] as const) {
     // 報表狀態要寫入 200 筆資料並跑兩次 axe，平行執行時可能超過預設 30 秒
     test.describe.configure({ timeout: 90_000 })
     for (const check of checks) {
-      test(`P6-2 ${scheme} ${check.name}`, async ({ page }) => {
+      test(`P6-2 ${scheme} ${check.name}`, { tag: check.heavy ? ['@heavy'] : [] }, async ({ page }) => {
         await page.emulateMedia({ colorScheme: scheme })
         await check.run(page)
       })

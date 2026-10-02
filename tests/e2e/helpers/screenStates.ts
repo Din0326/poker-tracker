@@ -1089,7 +1089,8 @@ async function seedManyCompleteHands(page: Page, count: number) {
 
 const exportDialog = (page: Page) => page.getByRole('dialog', { name: '匯出手牌' })
 
-export const handExportStates: { name: string; setup: (page: Page) => Promise<void> }[] = [
+/** heavy：需要寫入大量資料（≥ 1,000 筆）的狀態，對比度檢查會加上 @heavy tag，移到序列執行的 project */
+export const handExportStates: { name: string; heavy?: boolean; setup: (page: Page) => Promise<void> }[] = [
   {
     // 列表右上角「＋ 新增手牌」「匯出」
     name: 'hands-export-entry',
@@ -1129,9 +1130,12 @@ export const handExportStates: { name: string; setup: (page: Page) => Promise<vo
   },
   {
     name: 'hand-export-sheet-too-many',
+    // 寫入 10,001 手、列表載入 10,001 手：在序列執行的 heavy project 跑（見 playwright.config.ts），避免與平行測試搶 CPU
+    heavy: true,
     setup: async (page) => {
-      // headless WebKit 的 IndexedDB 每筆寫入約 15ms（與資料大小無關），寫入 10,001 手約需 2.5 分鐘
-      test.setTimeout(360_000)
+      // putRecords 在 Worker 中寫入，10,001 手約 2.5 秒（主執行緒寫入時約 2.5 分鐘，見 helpers/idb.ts）；
+      // 列表載入與統計 10,001 手仍較慢，保留較寬的逾時
+      test.setTimeout(120_000)
       await seedManyCompleteHands(page, 10_001)
       await openHandsTab(page)
       await page.getByTestId('hand-list-summary').filter({ hasText: '10001' }).waitFor({ timeout: 60_000 })

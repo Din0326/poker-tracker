@@ -485,6 +485,9 @@ test.describe('5.8 儲存後導向', () => {
 
 test.describe('12.3 H2 設定頁「手牌」區塊（7.3、10.6）', () => {
   test('12.3 H2 設定頁匯出名稱：HC16 的 UI 部分（錯誤訊息）通過；儲存後寫入 Settings.handHeroName', async ({ page }) => {
+    // 依序檢查 11 個名稱（每次儲存、等錯誤訊息或 toast、讀 DB），單獨執行約 13 秒；
+    // 平行執行或較慢的 CI 上可能逼近預設 30 秒，曾偶發逾時，故放寬為 3 倍逾時（不影響斷言）
+    test.slow()
     await seed(page)
     await page.goto('./#/settings')
     const input = page.getByLabel('匯出名稱')

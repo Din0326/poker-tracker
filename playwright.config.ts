@@ -5,6 +5,9 @@ import { defineConfig, devices } from '@playwright/test'
 const screenshotsIgnore = process.env.SCREENSHOTS_DIR ? [] : ['**/screenshots.spec.ts']
 // 效能量測（P3-3 列表、P4-5 報表、H2 手牌列表與詳情）另成一個 project，等其他測試跑完才執行，避免平行測試搶 CPU 影響數字
 const perfSpec = ['**/sessions-perf.spec.ts', '**/report-perf.spec.ts', '**/hands-perf.spec.ts']
+// 需要寫入大量資料（≥ 1,000 筆）的測試加上 @heavy tag，移出平行的主 project，在主 project 之後以單一 worker 序列執行，
+// 避免大量寫入與渲染造成 CPU 尖峰，讓同時執行的其他測試偶發逾時
+const HEAVY_TAG = /@heavy/
 
 // E2E 固定在 Asia/Taipei（主要使用者所在時區），任何機器（含 UTC 的 CI）結果一致：
 // - 瀏覽器：use.timezoneId；App 以瀏覽器本地時間為準（規格行為），顯示的時間戳、預設開始時間等都依此
@@ -30,12 +33,23 @@ export default defineConfig({
       name: 'webkit-iphone14',
       use: { ...devices['iPhone 14'] },
       testIgnore: [...screenshotsIgnore, ...perfSpec],
+      grepInvert: HEAVY_TAG,
+    },
+    {
+      name: 'webkit-iphone14-heavy',
+      use: { ...devices['iPhone 14'] },
+      testIgnore: [...screenshotsIgnore, ...perfSpec],
+      grep: HEAVY_TAG,
+      fullyParallel: false,
+      workers: 1,
+      dependencies: ['webkit-iphone14'],
     },
     {
       name: 'webkit-iphone14-perf',
       use: { ...devices['iPhone 14'] },
       testMatch: perfSpec,
-      dependencies: ['webkit-iphone14'],
+      // 排在 heavy 之後，避免兩者同時執行影響效能數字
+      dependencies: ['webkit-iphone14-heavy'],
     },
   ],
   // 以正式建置測試，service worker 與 manifest 才與部署版本一致
