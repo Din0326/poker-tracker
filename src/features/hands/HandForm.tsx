@@ -223,11 +223,14 @@ export function HandForm({ mode, data, initial, baseline: initialBaseline, makeE
   }
   useEffect(() => {
     if (autoScrollSeq === 0) return
-    // 等兩個 frame：畫面更新後，固定行動列的高度（ResizeObserver 寫入 --record-bar-offset，影響頁面底部內距）也已更新
+    // 等兩個 frame：畫面更新、版面計算完成後再量測
     let frame = requestAnimationFrame(() => {
       frame = requestAnimationFrame(() => {
         const container = containerRef.current
         if (!container) return
+        // 固定行動列高度改變時，頁面底部內距（--record-bar-offset）由 ResizeObserver 更新，WebKit 可能晚好幾個 frame 才送達；
+        // 捲動前先同步寫入目前高度，避免頁面高度不足使捲動被截短
+        if (barRef.current) document.documentElement.style.setProperty('--record-bar-offset', `${barRef.current.offsetHeight}px`)
         const lines = container.querySelectorAll('[data-testid="log-line"]')
         const streets = container.querySelectorAll('[data-log-street]')
         const potInfos = container.querySelectorAll('[data-pot-info]')
