@@ -82,8 +82,67 @@ export function buildBackup(source: BackupSource, now: Date): BackupFile {
   }
 }
 
+// ---------------------------------------------------------------------------
+// 升級前的備份（v1 3.7「升級前的備份提示」、8.4「升級前的備份」，v1.6）
+// ---------------------------------------------------------------------------
+
+/**
+ * 舊資料庫的 Dexie 版本 → 升級前備份的 schemaVersion（8.4 表格）：
+ * version 1（v1.0–v1.1）→ 1、version 2（v1.2–v1.4.1）→ 2、version 3（產品 v2）→ 3
+ */
+export const BACKUP_SCHEMA_BY_DB_VERSION: Readonly<Record<number, number>> = { 1: 1, 2: 2, 3: 3 }
+
+/** 對應的 schemaVersion；沒有定義的版本回傳 null（呼叫端不提供匯出） */
+export function backupSchemaForDbVersion(dbVersion: number): number | null {
+  return BACKUP_SCHEMA_BY_DB_VERSION[dbVersion] ?? null
+}
+
+/** 升級前舊資料庫的原始資料（原樣，型別不保證符合目前版本） */
+export interface LegacyBackupSource {
+  sessions: readonly Record<string, unknown>[]
+  venues: readonly Record<string, unknown>[]
+  stakes: readonly Record<string, unknown>[]
+  hands: readonly Record<string, unknown>[]
+  settings: Readonly<Record<string, unknown>>
+}
+
+const str = (v: unknown) => (typeof v === 'string' ? v : '')
+const legacyById = (a: Record<string, unknown>, b: Record<string, unknown>) => {
+  const x = str(a.id)
+  const y = str(b.id)
+  return x < y ? -1 : x > y ? 1 : 0
+}
+const legacyBySortOrderThenId = (a: Record<string, unknown>, b: Record<string, unknown>) => {
+  const x = typeof a.sortOrder === 'number' ? a.sortOrder : 0
+  const y = typeof b.sortOrder === 'number' ? b.sortOrder : 0
+  return x - y || legacyById(a, b)
+}
+
+/**
+ * 組出升級前的備份物件（8.4「升級前的備份」）：每筆資料原樣寫出、不轉換也不補欄位，
+ * 讓新版以 8.5 的遷移（1 → 2 → 3）匯入。排序與 settings 排除規則同 buildBackup；
+ * schemaVersion < 3 時不含 hands 欄位（舊格式沒有此欄位，2 → 3 遷移會補上 []）。
+ */
+export function buildLegacyBackup(source: LegacyBackupSource, schemaVersion: number, now: Date): Record<string, unknown> {
+  const settings: Record<string, unknown> = {}
+  for (const key of EXPORTED_SETTING_KEYS) {
+    const value = source.settings[key]
+    if (value !== undefined) settings[key] = value
+  }
+  return {
+    app: BACKUP_APP,
+    schemaVersion,
+    exportedAt: isoWithOffset(now),
+    sessions: [...source.sessions].sort(legacyById),
+    venues: [...source.venues].sort(legacyBySortOrderThenId),
+    stakes: [...source.stakes].sort(legacyBySortOrderThenId),
+    ...(schemaVersion >= 3 ? { hands: [...source.hands].sort(legacyById) } : {}),
+    settings,
+  }
+}
+
 /** 備份檔內容（JSON 文字，縮排 2 格方便人工檢視） */
-export function serializeBackup(backup: BackupFile): string {
+export function serializeBackup(backup: BackupFile | Record<string, unknown>): string {
   return `${JSON.stringify(backup, null, 2)}\n`
 }
 

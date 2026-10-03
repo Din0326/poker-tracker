@@ -106,7 +106,8 @@ export function ResultStep({ values, stage, errors, gameType, onShowdownChange, 
           <h2 id="hand-pots-title" className={sectionTitleClass}>
             {t.result.potsTitle}
           </h2>
-          <ul className="num mt-2 space-y-1 rounded-(--radius-card) border border-(--color-border) bg-(--color-surface) px-3 py-2 text-sm">
+          {/* data-pot-info：5.3 自動捲動的「底池資訊」（進入結果步驟後捲到此清單） */}
+          <ul data-pot-info className="num mt-2 space-y-1 rounded-(--radius-card) border border-(--color-border) bg-(--color-surface) px-3 py-2 text-sm">
             {view?.pots.map((p, i) => (
               <li key={i} data-testid="pot-line">
                 {t.result.potLine(i === 0 ? t.result.mainPot : t.result.sidePot(i), formatHandAmount(p.amount, unit), winnersText(p.winners))}

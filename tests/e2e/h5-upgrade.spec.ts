@@ -44,6 +44,9 @@ test('12.3 H5 v1.4 → v2 升級：v1.4 正式資料（version 2）載入新版�
 
   // 載入新版 App：紀錄列表的筆數與總盈利
   await page.goto('./#/sessions')
+  // v1.6（v1 3.7 升級前的備份提示）：舊版且有資料時先出現提示；本測試驗證升級本身，選【直接更新】（提示與匯出另見 p7-data-protection.spec.ts）
+  await expect(page.getByTestId('db-upgrade-prompt')).toBeVisible()
+  await page.getByRole('button', { name: '直接更新' }).click()
   await expect(heading(page)).toHaveText('紀錄')
   await expect(summary(page)).toHaveText(`共 ${sessions.length} 場 · ${totalProfit}`)
   expect(await nativeDbInfo(page)).toEqual({ version: 30, stores: ['hands', 'sessions', 'settings', 'stakes', 'venues'] })

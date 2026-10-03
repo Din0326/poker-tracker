@@ -1045,6 +1045,18 @@ export const strings = {
     persistentStorage: '持久儲存',
     persisted: '已取得',
     notPersisted: '未取得',
+    /** 8.8（v1.6）：持久儲存「未取得」時的說明 */
+    notPersistedNote: '未取得時，裝置空間不足時系統可能清除本 App 的資料，請更常備份。',
+    /** 8.8（v1.6）資料保存說明 */
+    dataSafety: {
+      title: '關於資料保存',
+      items: [
+        '紀錄只存在這台裝置，沒有雲端同步。',
+        '在 iPhone 刪除主畫面的 App 圖示，或清除 Safari 的網站資料，會一併刪除這台裝置上的所有紀錄。',
+        '換手機時，請先在舊手機匯出備份檔，再到新手機匯入。',
+        '建議定期匯出備份，存到「檔案」App 或其他地方。',
+      ],
+    },
     dataCount: '資料量',
     dataCountValue: (sessions: number, venues: number, stakes: number) =>
       `${sessions} 場 · ${venues} 個場地 · ${stakes} 個盲注`,
@@ -1151,6 +1163,18 @@ export const strings = {
   // 3.7 資料庫升級（version 1 → 2；v2 手牌 version 2 → 3，SPEC-v2-hands 3.12）失敗時的錯誤狀態
   dbUpgrade: {
     failed: '資料升級失敗，請關閉 App 後重新開啟；你的資料沒有遺失',
+    // 3.7「升級前的備份提示」（v1.6）
+    prompt: {
+      title: '這次更新會升級資料庫',
+      body: '更新時會把資料轉換成新版格式，原有紀錄都會保留。為了以防萬一，建議先匯出一份備份檔再繼續。',
+      dataLabel: '目前資料',
+      exportBackup: '先匯出備份',
+      exportAgain: '再匯出一次',
+      exporting: '匯出中…',
+      backedUp: '已備份',
+      skip: '直接更新',
+      continue: '繼續更新',
+    },
   },
   // 4.4 數值顯示用的符號與樣板（src/domain/format.ts 使用）
   format: {

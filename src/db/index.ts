@@ -9,6 +9,7 @@ import { createVenueRepo } from './venueRepo'
 
 export * from './errors'
 export * from './schema'
+export * from './preUpgrade'
 export { toIsoWithOffset, type MoveDirection, type RepoOptions } from './common'
 export {
   createSessionRepo,

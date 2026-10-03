@@ -50,7 +50,7 @@ export function ActionLog({ values, setup, unit, untilStreet, runoutFrom }: LogP
           const cards = street === 'preflop' ? [] : street === 'flop' ? board.slice(0, 3) : board.slice(boardCountFor(street) - 1, boardCountFor(street))
           const isRunout = runoutFrom !== null && runoutFrom !== undefined && STREET_LIST.indexOf(street) >= STREET_LIST.indexOf(runoutFrom) && lines.length === 0
           return (
-            <div key={street} data-testid={`log-${street}`} className="rounded-(--radius-card) border border-(--color-border) bg-(--color-surface) px-3 py-2">
+            <div key={street} data-testid={`log-${street}`} data-log-street={street} className="rounded-(--radius-card) border border-(--color-border) bg-(--color-surface) px-3 py-2">
               <h3 className="flex flex-wrap items-baseline gap-x-2 text-sm font-semibold">
                 <span>{t.streets[street]}</span>
                 {cards.length > 0 && <CardList cards={cards} />}
@@ -92,28 +92,31 @@ export function StreetStep({ values, stage, errors, gameType, openBoardPicker }:
     <div data-testid={`street-step-${stage.step}`}>
       <ActionLog values={values} setup={stage.setup} unit={unit} runoutFrom={stage.runout ? stage.step : null} />
 
-      <div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-sm" data-testid="pot-line">
+      {/* data-pot-info：5.3 自動捲動的「底池資訊」 */}
+      <div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-sm" data-testid="pot-line" data-pot-info>
         <span className="num font-semibold">{t.pot(formatHandAmount(currentPot(stage.state), unit))}</span>
         {stage.phase === 'action' && <span className="num text-(--color-text-muted)">{t.currentBet(formatHandAmount(stage.state.currentBet, unit))}</span>}
       </div>
 
       {stage.phase === 'board' && (
-        <Field errorKey={ERROR_KEYS.streetBoard} error={boardError}>
-          <p className={labelClass}>
-            {stage.runout ? t.cardPicker.titles.runout : t.streets[stage.step]}
-            {stage.runout && <span className="ml-2 text-xs font-normal">{t.runoutNote}</span>}
-          </p>
-          <CardSlots
-            label={t.fields.board}
-            slots={values.board}
-            indices={pending}
-            invalid={boardError !== undefined}
-            describedBy={describedBy(boardError && 'hand-street-board-error')}
-            onOpen={(i) => openBoardPicker(pending, i, pickerTitle, t.fields.board)}
-            testId="street-board-slots"
-          />
-          <FieldError id="hand-street-board-error" message={boardError} />
-        </Field>
+        <div data-pot-info>
+          <Field errorKey={ERROR_KEYS.streetBoard} error={boardError}>
+            <p className={labelClass}>
+              {stage.runout ? t.cardPicker.titles.runout : t.streets[stage.step]}
+              {stage.runout && <span className="ml-2 text-xs font-normal">{t.runoutNote}</span>}
+            </p>
+            <CardSlots
+              label={t.fields.board}
+              slots={values.board}
+              indices={pending}
+              invalid={boardError !== undefined}
+              describedBy={describedBy(boardError && 'hand-street-board-error')}
+              onOpen={(i) => openBoardPicker(pending, i, pickerTitle, t.fields.board)}
+              testId="street-board-slots"
+            />
+            <FieldError id="hand-street-board-error" message={boardError} />
+          </Field>
+        </div>
       )}
     </div>
   )

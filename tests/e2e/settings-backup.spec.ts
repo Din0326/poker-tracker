@@ -389,10 +389,11 @@ test.describe('8.7 備份提醒', () => {
     await expect(page.getByTestId('backup-reminder')).toHaveCount(0)
   })
 
-  test('距上次備份超過 30 天且之後有修改：提醒；沒有修改：不提醒', async ({ page }) => {
+  // v1.6：30 天改為 14 天（原本以 31 天前測試，改為 15 天前，同時確認 15 天在新規則下會提醒）
+  test('8.7 條件 2：距上次備份超過 14 天且之後有修改：提醒；沒有修改：不提醒', async ({ page }) => {
     const sessions = manySessions(3)
     await seed(page, { sessions })
-    const old = new Date(Date.now() - 31 * 24 * 60 * 60 * 1000)
+    const old = new Date(Date.now() - 15 * 24 * 60 * 60 * 1000)
     const lastBackupAt = old.toISOString().replace('Z', '+00:00')
     await putRecords(page, 'settings', [{ key: 'lastBackupAt', value: lastBackupAt }])
     // manySessions 的 updatedAt 在 2024 年，早於備份時間
@@ -402,6 +403,23 @@ test.describe('8.7 備份提醒', () => {
 
     const updated = { ...sessions[0]!, updatedAt: new Date(old.getTime() + 60_000).toISOString().replace('Z', '+00:00') }
     await putRecords(page, 'sessions', [updated])
+    await page.reload()
+    await expect(page.getByTestId('backup-reminder')).toBeVisible()
+  })
+
+  test('8.7 條件 3（v1.6）：備份後新增或修改累積 19 筆不提醒、20 筆提醒（距上次備份僅 1 天）', async ({ page }) => {
+    const lastBackup = new Date(Date.now() - 24 * 60 * 60 * 1000)
+    const afterBackup = new Date(lastBackup.getTime() + 60_000).toISOString().replace('Z', '+00:00')
+    // 30 筆備份前的場次（updatedAt 在 2024 年）+ 19 筆備份後修改
+    const sessions = manySessions(50).map((s, i) => (i < 19 ? { ...s, updatedAt: afterBackup } : s))
+    await seed(page, { sessions: sessions.slice(0, 49) })
+    await putRecords(page, 'settings', [{ key: 'lastBackupAt', value: lastBackup.toISOString().replace('Z', '+00:00') }])
+    await openReport(page)
+    await expect(page.getByTestId('report-content')).toBeVisible()
+    await expect(page.getByTestId('backup-reminder')).toHaveCount(0)
+
+    // 第 20 筆：備份後新增
+    await putRecords(page, 'sessions', [{ ...sessions[49]!, updatedAt: afterBackup }])
     await page.reload()
     await expect(page.getByTestId('backup-reminder')).toBeVisible()
   })

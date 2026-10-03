@@ -104,6 +104,9 @@ test('HC23 E2E 遷移：以 version 2 結構寫入 IndexedDB 後載入 App，列
 
   // 載入新版 App：開啟時執行 version 2 → 3 遷移
   await page.goto('./#/sessions')
+  // v1.6（v1 3.7 升級前的備份提示）：舊版且有資料時先出現提示；本測試驗證升級本身，選【直接更新】（提示與匯出另見 p7-data-protection.spec.ts）
+  await expect(page.getByTestId('db-upgrade-prompt')).toBeVisible()
+  await page.getByRole('button', { name: '直接更新' }).click()
   await expect(heading(page)).toHaveText('紀錄')
   await expect(rows(page)).toHaveCount(allSessions.length)
   await expect(page.getByTestId('row-sold-badge')).toHaveCount(2)
@@ -237,11 +240,12 @@ test('10.5 備份提醒：從未備份且「場次數 + 手牌數」≥ 10 時�
   await expect(page.getByTestId('backup-reminder')).toBeVisible()
 })
 
-test('10.5 備份提醒：距上次備份超過 30 天，且之後有手牌被修改時提醒', async ({ page }) => {
+// v2.4：30 天改為 14 天（原本以 31 天前測試，改為 15 天前）
+test('10.5 備份提醒：距上次備份超過 14 天，且之後有手牌被修改時提醒', async ({ page }) => {
   // 場次與手牌的 updatedAt 都設在 2024 年，早於備份時間
   const longAgo = '2024-01-01T00:00:00+08:00'
   await seed(page, { venues, stakes, sessions: fixtureSessions.slice(0, 2).map((s) => ({ ...s, updatedAt: longAgo })) })
-  const old = new Date(Date.now() - 31 * 24 * 60 * 60 * 1000)
+  const old = new Date(Date.now() - 15 * 24 * 60 * 60 * 1000)
   await putRecords(page, 'settings', [{ key: 'lastBackupAt', value: old.toISOString().replace('Z', '+00:00') }])
   // 手牌與場次的 updatedAt 都早於備份時間：不提醒
   await putRecords(page, 'hands', fixtureHands(longAgo))

@@ -5,6 +5,7 @@ import {
   handExportStates,
   ggImportStates,
   h5States,
+  p7States,
   handListStates,
   handStates,
   p6States,
@@ -22,7 +23,7 @@ import {
 const outDir = process.env.SCREENSHOTS_DIR
 
 for (const scheme of ['dark', 'light'] as const) {
-  for (const state of [...stakingStates, ...settingsStates, ...p6States, ...handStates, ...handListStates, ...handExportStates, ...ggImportStates, ...h5States]) {
+  for (const state of [...stakingStates, ...settingsStates, ...p6States, ...handStates, ...handListStates, ...handExportStates, ...ggImportStates, ...h5States, ...p7States]) {
     test(`截圖 ${state.name}-${scheme}`, async ({ page }) => {
       await page.emulateMedia({ colorScheme: scheme, reducedMotion: 'reduce' })
       await state.setup(page)

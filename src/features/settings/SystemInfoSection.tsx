@@ -50,18 +50,37 @@ export function SystemInfoSection({
 
   return (
     <SettingsSection id="settings-system" title={t.systemSection}>
-      <dl className={`${cardClass} px-4`}>
-        {rows.map((r) => (
-          <div
-            key={r.key}
-            data-testid={`info-${r.key}`}
-            className="flex min-h-12 items-center justify-between gap-3 border-b border-(--color-border) py-2 last:border-b-0"
-          >
-            <dt className="shrink-0 text-(--color-text-muted)">{r.label}</dt>
-            <dd className="num min-w-0 text-right break-words">{r.value}</dd>
-          </div>
-        ))}
-      </dl>
+      <div className={`${cardClass} px-4`}>
+        <dl>
+          {rows.map((r) => (
+            <div
+              key={r.key}
+              data-testid={`info-${r.key}`}
+              className="flex min-h-12 items-center justify-between gap-3 border-b border-(--color-border) py-2 last:border-b-0"
+            >
+              <dt className="shrink-0 text-(--color-text-muted)">{r.label}</dt>
+              <dd className="num min-w-0 text-right break-words">{r.value}</dd>
+            </div>
+          ))}
+        </dl>
+        {/* 8.8（v1.6）：持久儲存「未取得」時說明其意義 */}
+        {persisted === false && (
+          <p data-testid="persist-note" className="border-t border-(--color-border) py-2 text-sm text-(--color-text-muted)">
+            {t.notPersistedNote}
+          </p>
+        )}
+      </div>
+      {/* 8.8（v1.6）資料保存說明 */}
+      <section role="note" aria-labelledby="data-safety-title" data-testid="data-safety-note" className={`${cardClass} mt-3 px-4 py-3`}>
+        <h3 id="data-safety-title" className="font-semibold">
+          {t.dataSafety.title}
+        </h3>
+        <ul className="mt-2 list-disc space-y-1.5 pl-5 text-sm">
+          {t.dataSafety.items.map((item) => (
+            <li key={item}>{item}</li>
+          ))}
+        </ul>
+      </section>
     </SettingsSection>
   )
 }
