@@ -273,6 +273,8 @@ async function openComplete79(page: Page): Promise<void> {
 }
 
 test.describe('v2 5.3 完整模式自動捲動', () => {
+  // 逐步輸入整手 7.9 且每步等動畫結束後量測，單獨執行約 20 秒；平行執行時放寬逾時
+  test.describe.configure({ timeout: 60_000 })
   test('P7 5.3 連續輸入行動：每一步後最新一筆行動與底池資訊都在固定行動列之上（等動畫結束後量測），且確實有捲動', async ({ page }) => {
     await openComplete79(page)
     await play79WithChecks(page)

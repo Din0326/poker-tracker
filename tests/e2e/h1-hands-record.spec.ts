@@ -191,6 +191,8 @@ test.describe('12.3 H1 簡易模式', () => {
 
 test.describe('12.3 H1 完整模式', () => {
   test('12.3 H1 完整模式以 UI 逐步輸入 7.9 範例，儲存後 detail 與 7.9 JSON 完全相同', async ({ page }) => {
+    // 完整模式逐步輸入整手 7.9（單獨執行約 15–18 秒，main 分支相同）：平行執行時 CPU 爭用會逼近預設 30 秒逾時，放寬為 60 秒（不改任何斷言）
+    test.setTimeout(60_000)
     await openNewHand(page)
     await enterSetup79(page)
     await preflop79(page)
@@ -373,6 +375,8 @@ test.describe('12.3 H1 草稿', () => {
   })
 
   test('12.3 H1 草稿：完整模式填到一半重新載入，草稿還原（步驟、行動、公牌）', async ({ page }) => {
+    // 完整模式逐步輸入整手 7.9（單獨執行約 15–18 秒，main 分支相同）：平行執行時 CPU 爭用會逼近預設 30 秒逾時，放寬為 60 秒（不改任何斷言）
+    test.setTimeout(60_000)
     await openNewHand(page)
     await enterSetup79(page)
     await preflop79(page)
@@ -447,6 +451,8 @@ test.describe('12.3 H1 草稿', () => {
 
 test.describe('12.3 H1 暫存為簡易、補齊、編輯', () => {
   test('12.3 H1 暫存為簡易：未完成手牌儲存為 simple 且帶 detail，之後「繼續補齊」完成後 kind 變為 complete、id 不變', async ({ page }) => {
+    // 完整模式逐步輸入整手 7.9（單獨執行約 15–18 秒，main 分支相同）：平行執行時 CPU 爭用會逼近預設 30 秒逾時，放寬為 60 秒（不改任何斷言）
+    test.setTimeout(60_000)
     await openNewHand(page)
     await enterSetup79(page)
     await preflop79(page)
